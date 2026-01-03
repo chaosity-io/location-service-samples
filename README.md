@@ -1,157 +1,158 @@
-# Location Service Samples
+# Location Service Code Samples
 
-Live examples demonstrating Chaosity Location Service integration across multiple platforms and frameworks.
+Official code samples for integrating with Location Service API. Examples cover authentication methods, client libraries, and common use cases.
 
 ## 🚀 Quick Start
 
-All samples require API credentials:
+1. **Get Credentials:** Sign up at your organization's portal
+2. **Choose a Sample:** Pick from backend, web, or mobile samples below
+3. **Clone & Run:** Follow the README in each sample directory
 
-1. **Sign up** at [portal.chaosity.io](https://portal.chaosity.io)
-2. **Copy** `.env.example` to `.env.local` in the sample directory
-3. **Add** your credentials to `.env.local`
-4. **Run** `npm install && npm run dev` (or framework-specific command)
+## 📦 Sample Categories
 
-## 📁 Repository Structure
+### Backend Samples
 
+Server-side integration examples for various languages and authentication methods.
+
+| Sample | Description | Auth Method | Language |
+|--------|-------------|-------------|----------|
+| [nodejs-client-library](./backend/nodejs-client-library) | ⭐ **Recommended** - Client library with getToken() | Client Library | Node.js |
+| [nodejs-direct-auth](./backend/nodejs-direct-auth) | Direct Authentication with HTTP Basic Auth | Direct Auth | Node.js |
+| [nodejs-manual-token](./backend/nodejs-manual-token) | Manual token generation with custom caching | Token-Based | Node.js |
+| python-* | 🚧 Under construction | Various | Python |
+
+### Web Samples
+
+Frontend integration examples for web applications.
+
+| Sample | Description | Framework | Features |
+|--------|-------------|-----------|----------|
+| [nextjs-app-router](./web/nextjs-app-router) | ⭐ **Recommended** - Next.js with LocationClientProvider | Next.js 14+ | Server Actions, Maps |
+| [vanilla-js-token](./web/vanilla-js-token) | Pure SPA with separate backend for tokens | Vanilla JS | Token caching |
+
+### Mobile Samples (Coming Soon)
+
+| Sample | Description | Platform |
+|--------|-------------|----------|
+| [react-native](./mobile/react-native) | React Native integration | iOS & Android |
+| [ios-swift](./mobile/ios-swift) | Native iOS integration | iOS |
+| [android-kotlin](./mobile/android-kotlin) | Native Android integration | Android |
+
+## 🎯 Choose Your Sample
+
+### I want to...
+
+**Build a backend API**
+→ Start with [nodejs-client-library](./backend/nodejs-client-library)
+
+**Build a Next.js app**
+→ Start with [nextjs-app-router](./web/nextjs-app-router)
+
+**Build a pure SPA (React/Vue/Angular)**
+→ Start with [vanilla-js-token](./web/vanilla-js-token)
+
+**Use Direct Authentication (server-side only)**
+→ See [nodejs-direct-auth](./backend/nodejs-direct-auth)
+
+**Learn token caching manually**
+→ See [nodejs-manual-token](./backend/nodejs-manual-token)
+
+## 📚 Documentation
+
+- [Setup Guide](https://docs.chaosity.io/docs/get-started/setup) - Get started in 5 minutes
+- [Authentication](https://docs.chaosity.io/docs/authentication) - All authentication methods
+- [Places API](https://docs.chaosity.io/api/places) - Geocoding and search
+- [Maps API](https://docs.chaosity.io/api/maps) - Map tiles and styles
+
+## 🔑 Getting Credentials
+
+1. Receive invitation email from your organization
+2. Create account and log in to your portal
+3. Navigate to **Applications** → **Create Application**
+4. Configure allowed domains
+5. Copy your credentials:
+   - API URL
+   - Client ID
+   - Client Secret
+
+## 🛠️ Common Setup
+
+All samples follow this pattern:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/chaosity-io/location-service-samples.git
+cd location-service-samples/[category]/[sample-name]
+
+# 2. Copy environment template
+cp .env.example .env
+
+# 3. Add your credentials to .env
+# LOCATION_API_URL=https://api.yourdomain.com
+# LOCATION_CLIENT_ID=your_client_id
+# LOCATION_CLIENT_SECRET=your_client_secret
+
+# 4. Install dependencies
+npm install  # or pip install -r requirements.txt
+
+# 5. Run the sample
+npm start    # or python app.py
 ```
-location-service-samples/
-├── web/                    # Web applications
-│   ├── javascript-vanilla/ # Pure JavaScript (no framework)
-│   ├── react/             # React applications
-│   ├── vue/               # Vue.js applications
-│   ├── nextjs/            # Next.js applications
-│   └── angular/           # Angular applications
-├── mobile/                # Mobile applications
-│   ├── react-native/      # React Native (iOS & Android)
-│   ├── ios-swift/         # Native iOS (Swift)
-│   └── android-kotlin/    # Native Android (Kotlin)
-└── backend/               # Backend integrations
-    ├── nodejs-express/    # Node.js + Express
-    ├── python-fastapi/    # Python + FastAPI
-    └── java-spring/       # Java + Spring Boot
-```
 
-## 🌐 Web Samples
+## 🔒 Security Best Practices
 
-### JavaScript (Vanilla)
-
-Pure JavaScript examples with no framework dependencies.
-
-- **[maps-simple](./web/javascript-vanilla/maps-simple)** - Basic map display with MapLibre GL
-- **[maps-advanced](./web/javascript-vanilla/maps-advanced)** - Markers, popups, custom controls
-- **[address-autocomplete](./web/javascript-vanilla/address-autocomplete)** - Search-as-you-type address finder
-- **[address-validation](./web/javascript-vanilla/address-validation)** - Validate and standardize addresses
-- **[ecommerce-checkout](./web/javascript-vanilla/ecommerce-checkout)** - Complete checkout flow with address validation
-
-### React
-
-React applications using `@chaosity/location-client-react`.
-
-- **[maps-simple](./web/react/maps-simple)** - Basic map with React hooks
-- **[maps-advanced](./web/react/maps-advanced)** - Interactive map with state management
-- **[address-autocomplete](./web/react/address-autocomplete)** - Address search component
-- **[address-validation](./web/react/address-validation)** - Form validation with address verification
-- **[ecommerce-checkout](./web/react/ecommerce-checkout)** - Full checkout experience
-- **[store-locator](./web/react/store-locator)** - Find nearest store locations
-
-### Vue.js
-
-*Coming soon...*
-
-### Next.js
-
-*Coming soon...*
-
-### Angular
-
-*Coming soon...*
-
-## 📱 Mobile Samples
-
-### React Native
-
-Cross-platform mobile apps for iOS and Android.
-
-- **[maps-simple](./mobile/react-native/maps-simple)** - Basic map display
-- **[store-locator](./mobile/react-native/store-locator)** - Find nearby stores with directions
-- **[delivery-tracking](./mobile/react-native/delivery-tracking)** - Real-time delivery tracking
-- **[address-autocomplete](./mobile/react-native/address-autocomplete)** - Mobile address search
-
-### iOS (Swift)
-
-*Coming soon...*
-
-### Android (Kotlin)
-
-*Coming soon...*
-
-## 🔧 Backend Samples
-
-### Node.js + Express
-
-*Coming soon...*
-
-### Python + FastAPI
-
-*Coming soon...*
-
-### Java + Spring Boot
-
-*Coming soon...*
-
-## 🎯 Samples by Use Case
-
-| Use Case | Vanilla JS | React | Vue | Next.js | React Native | iOS | Android |
-|----------|------------|-------|-----|---------|--------------|-----|---------|
-| **Display Maps** | ✅ | ✅ | 🔜 | 🔜 | ✅ | 🔜 | 🔜 |
-| **Address Autocomplete** | ✅ | ✅ | 🔜 | 🔜 | ✅ | 🔜 | 🔜 |
-| **Address Validation** | ✅ | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| **Geocoding** | ✅ | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| **Reverse Geocoding** | ✅ | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| **Store Locator** | 🔜 | ✅ | 🔜 | 🔜 | ✅ | 🔜 | 🔜 |
-| **E-commerce Checkout** | ✅ | ✅ | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 |
-| **Delivery Tracking** | 🔜 | 🔜 | 🔜 | 🔜 | ✅ | 🔜 | 🔜 |
-
-✅ Available | 🔜 Coming Soon
-
-## 📚 Documentation & Resources
-
-- **[API Documentation](https://docs.chaosity.io)** - Complete API reference
-- **[NPM Packages](https://www.npmjs.com/org/chaosity)** - Published libraries
-- **[Developer Portal](https://portal.chaosity.io)** - Get API credentials
-- **[Marketing Site](https://chaosity.io)** - Product information
+- ✅ Store credentials in `.env` files (never commit)
+- ✅ Use client libraries for automatic token management
+- ✅ Keep credentials server-side only
+- ✅ Configure allowed domains in portal
+- ❌ Never expose credentials in frontend code
+- ❌ Never commit `.env` files to version control
 
 ## 🤝 Contributing
 
-We welcome sample contributions! Each sample should:
+Found a bug or want to add a sample? Contributions welcome!
 
-1. Be self-contained and runnable
-2. Include a detailed README
-3. Have `.env.example` with required variables
-4. Follow framework best practices
-5. Include a screenshot or demo GIF
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-## 📝 Sample Template
+## 📝 License
 
-Each sample directory should contain:
+MIT License - see [LICENSE](./LICENSE) for details
+
+## 💬 Support
+
+- **Documentation:** https://docs.chaosity.io
+- **Issues:** https://github.com/chaosity-io/location-service-samples/issues
+- **Email:** support@chaosity.io
+
+---
+
+## Sample Structure
+
+Each sample includes:
 
 ```
 sample-name/
-├── README.md              # What it demonstrates, how to run
-├── package.json           # Dependencies (if applicable)
-├── .env.example           # Required environment variables
-├── .gitignore            # Ignore node_modules, .env.local, etc.
-├── src/                   # Source code
-├── public/                # Static assets
-└── screenshot.png         # Visual preview
+├── src/                    # Source code
+├── .env.example           # Credentials template
+├── package.json           # Dependencies
+├── README.md              # Setup instructions
+└── .gitignore            # Git ignore rules
 ```
 
-## 🔐 Security
+## Authentication Methods Comparison
 
-- Never commit `.env.local` or actual credentials
-- All samples use `.env.example` as template
-- Credentials should be obtained from [portal.chaosity.io](https://portal.chaosity.io)
+| Method | Use Case | Complexity | Security |
+|--------|----------|------------|----------|
+| **Client Libraries** | Production apps | Low | High |
+| **Direct Auth** | Backend services, scripts | Very Low | Medium |
+| **Token-Based** | Frontend apps | Medium | High |
 
-## 📄 License
+## Quick Links
 
-MIT - See individual sample directories for specific licenses.
+- [Client Library (npm)](https://www.npmjs.com/package/@chaosity/location-client)
+- [React Client (npm)](https://www.npmjs.com/package/@chaosity/location-client-react)
+- [API Reference](https://docs.chaosity.io/api)
+- [Changelog](./CHANGELOG.md)
