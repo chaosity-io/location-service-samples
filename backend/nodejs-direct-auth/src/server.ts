@@ -19,7 +19,12 @@ const authHeader = `Basic ${btoa(`${LOCATION_CLIENT_ID}:${LOCATION_CLIENT_SECRET
 console.log('✓ Direct Authentication configured')
 
 // Helper function for API requests
-async function makeRequest(endpoint: string, body: any) {
+async function makeRequest(endpoint: string, body: any, req: express.Request) {
+  // Get origin from request headers
+  const origin = req.headers.origin || 
+    (req.headers.referer ? new URL(req.headers.referer).origin : '') ||
+    `${req.secure ? 'https' : 'http'}://${req.headers.host}`
+  
   const response = await fetch(`${LOCATION_API_URL}${endpoint}`, {
     method: 'POST',
     headers: {
