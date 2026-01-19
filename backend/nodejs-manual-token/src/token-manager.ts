@@ -13,7 +13,7 @@ export class TokenManager {
     private clientId: string,
     private clientSecret: string
   ) { 
-    this.getToken();
+    // Remove async call from constructor - let getToken() handle initialization lazily
   }
 
   async getToken(): Promise<string> {
