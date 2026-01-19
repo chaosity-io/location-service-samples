@@ -44,7 +44,7 @@ app.post('/api/search', async (req, res) => {
 app.post('/api/reverse-geocode', async (req, res) => {
   try {
     const { position } = req.body
-    req.headers
+    const { position } = req.body
 
     if (!position || !Array.isArray(position) || position.length !== 2) {
       return res.status(400).json({ error: 'Valid position [lng, lat] is required' })
