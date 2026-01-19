@@ -12,7 +12,7 @@ async function getToken() {
   console.log('Fetching new token from backend')
   
   // Fetch new token from backend
-  const response = await fetch('http://localhost:3001/api/token')
+  const response = await fetch('/api/token')
   if (!response.ok) {
     throw new Error('Failed to get token')
   }
