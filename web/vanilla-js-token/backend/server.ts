@@ -7,7 +7,10 @@ import { decodeJwt } from 'jose'
 dotenv.config()
 
 const app = express()
-app.use(cors())
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || [''],
+  credentials: true
+}))
 app.use(express.json())
 
 const { LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET, PORT = '3001' } = process.env
