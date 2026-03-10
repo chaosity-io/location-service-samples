@@ -38,6 +38,7 @@ export default function AddressFinder() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const marker = useRef<maplibregl.Marker | null>(null)
+  const terrainControlRef = useRef<maplibregl.TerrainControl | null>(null)
   const mapState = useRef<{ center: [number, number]; zoom: number }>({ center: [-98.5, 39.8], zoom: 4 })
   const colorSchemeSelectRef = useRef<HTMLSelectElement>(null)
   const politicalViewSelectRef = useRef<HTMLSelectElement>(null)
@@ -59,9 +60,6 @@ export default function AddressFinder() {
   const [mapStyle, setMapStyle] = useState('Standard')
   const [colorScheme, setColorScheme] = useState('Light')
   const [politicalView, setPoliticalView] = useState('')
-  const [terrain, setTerrain] = useState<'' | 'Hillshade' | 'Terrain3D'>('Hillshade')
-  const [buildings, setBuildings] = useState<'' | 'Buildings3D'>('')
-  const [contourDensity, setContourDensity] = useState<'' | 'Low' | 'Medium' | 'High'>('')
   const [filterCountry, setFilterCountry] = useState<string>('')
   const [language, setLanguage] = useState<string>('en')
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
@@ -76,6 +74,22 @@ export default function AddressFinder() {
   // The hook also registers a 'style.load' listener, so language is reapplied after setStyle.
   useMapLanguage(mapInstance, language)
 
+  // Add or replace the native TerrainControl based on whether the style has a raster-dem source.
+  // AWS Terrain3D styles embed a raster-dem source in the descriptor — we extract its ID so
+  // MapLibre's built-in button can toggle the terrain layer on/off.
+  function syncTerrainControl(instance: maplibregl.Map, style: { sources?: Record<string, { type?: string }> }) {
+    if (terrainControlRef.current) {
+      try { instance.removeControl(terrainControlRef.current) } catch { /* already removed */ }
+      terrainControlRef.current = null
+    }
+    const demSourceId = Object.entries(style.sources ?? {}).find(([, src]) => src.type === 'raster-dem')?.[0]
+    if (demSourceId) {
+      const ctrl = new maplibregl.TerrainControl({ source: demSourceId, exaggeration: 1 })
+      instance.addControl(ctrl, 'top-right')
+      terrainControlRef.current = ctrl
+    }
+  }
+
   // Initialize map once when auth is ready — style changes handled separately via setStyle
   useEffect(() => {
     if (!mapContainer.current) return
@@ -89,11 +103,10 @@ export default function AddressFinder() {
       }
 
       try {
+        const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
         const style = await fetchMapStyle(API_URL, mapStyle, getToken, {
           colorScheme: colorScheme as 'Light' | 'Dark',
-          ...(terrain && { terrain }),
-          ...(buildings && { buildings }),
-          ...(contourDensity && { contourDensity }),
+          ...(!isRasterStyle && { terrain: 'Terrain3D' as const, buildings: 'Buildings3D' as const, contourDensity: 'Medium' as const }),
           language: languageRef.current,
           ...(politicalView && { politicalView }),
         })
@@ -103,12 +116,13 @@ export default function AddressFinder() {
           style,
           center: mapState.current.center,
           zoom: mapState.current.zoom,
-          pitch: terrain === 'Terrain3D' || buildings === 'Buildings3D' ? 60 : 0,
+          pitch: 0,
           maxPitch: 85,
           transformRequest: createTransformRequest(API_URL, getToken),
         })
 
-        instance.addControl(new maplibregl.NavigationControl(), 'top-right')
+        instance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
+        syncTerrainControl(instance, style)
         instance.addControl(new maplibregl.ScaleControl())
         instance.addControl(new maplibregl.GeolocateControl({
           showUserLocation: true,
@@ -157,34 +171,19 @@ export default function AddressFinder() {
       if (mapStyle === 'Satellite') setPoliticalView('')
     }
 
-    // Terrain3D, Hillshade, contour lines, and political views are vector-only features.
-    // Reset them when switching to a raster style.
-    if (isRasterStyle) {
-      if (terrain) setTerrain('')
-      if (buildings) setBuildings('')
-      if (contourDensity) setContourDensity('')
-    }
-
     if (map.current && getToken) {
       const currentMap = map.current
       fetchMapStyle(API_URL, mapStyle, getToken, {
         colorScheme: colorScheme as 'Light' | 'Dark',
-        ...(terrain && { terrain }),
-        ...(buildings && { buildings }),
-        ...(contourDensity && { contourDensity }),
+        ...(!isRasterStyle && { terrain: 'Terrain3D' as const, buildings: 'Buildings3D' as const, contourDensity: 'Medium' as const }),
         language: languageRef.current,
         ...(politicalView && { politicalView }),
-      }).then(style => currentMap.setStyle(style))
+      }).then(style => {
+        currentMap.setStyle(style)
+        syncTerrainControl(currentMap, style)
+      }).catch(err => console.error('[style update]', err))
     }
-  }, [mapStyle, colorScheme, politicalView, terrain, buildings, contourDensity, loading, getToken])
-
-  // Adjust pitch when entering/leaving 3D mode. Terrain3D and Buildings3D require
-  // a non-zero pitch to be visible — animate to 60° when enabled, reset to 0° when disabled.
-  useEffect(() => {
-    if (!map.current) return
-    const needs3D = terrain === 'Terrain3D' || buildings === 'Buildings3D'
-    map.current.easeTo({ pitch: needs3D ? 60 : 0, duration: 500 })
-  }, [terrain, buildings])
+  }, [mapStyle, colorScheme, politicalView, loading, getToken])
 
   const flyToCountryCenter = useCallback(async (countryCode: string) => {
     if (!client || !countryCode) return
@@ -488,50 +487,6 @@ export default function AddressFinder() {
               <option value="SRB">Serbia</option>
               <option value="SYR">Syria</option>
               <option value="TUR">Turkey</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Terrain</label>
-            <select
-              value={terrain}
-              onChange={(e) => setTerrain(e.target.value as '' | 'Hillshade' | 'Terrain3D')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              disabled={loading || mapStyle === 'Satellite' || mapStyle === 'Hybrid'}
-            >
-              <option value="">None</option>
-              <option value="Hillshade">Hillshade</option>
-              <option value="Terrain3D">3D Terrain</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Buildings</label>
-            <select
-              value={buildings}
-              onChange={(e) => setBuildings(e.target.value as '' | 'Buildings3D')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              disabled={loading || mapStyle === 'Satellite'}
-            >
-              <option value="">Flat</option>
-              <option value="Buildings3D">3D Buildings</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Contour Lines</label>
-            <select
-              value={contourDensity}
-              onChange={(e) => setContourDensity(e.target.value as '' | 'Low' | 'Medium' | 'High')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              disabled={loading || mapStyle === 'Satellite' || mapStyle === 'Hybrid'}
-            >
-              <option value="">None</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
             </select>
           </div>
         </div>
