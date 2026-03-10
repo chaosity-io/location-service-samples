@@ -7,64 +7,208 @@
 body {
   font-family: system-ui, -apple-system, sans-serif;
   padding: 2rem;
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
+  color: #1a1a1a;
 }
 
 main {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 h1 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.75rem;
 }
 
-.search-box {
+code {
+  background: #f0f0f0;
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e5e5e5;
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 0.6rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #666;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #0070f3;
+}
+
+.tab.active {
+  color: #0070f3;
+  border-bottom-color: #0070f3;
+}
+
+.tab-description {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* Demo sections */
+.demo-section {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  margin-top: 0.5rem;
 }
 
 form {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-input {
+input[type="text"] {
   flex: 1;
-  padding: 0.75rem;
+  min-width: 200px;
+  padding: 0.6rem 0.75rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
 }
 
-button {
-  padding: 0.75rem 1.5rem;
+input[type="text"]:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+}
+
+button[type="submit"] {
+  padding: 0.6rem 1.25rem;
   background: #0070f3;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-button:disabled {
+button[type="submit"]:hover:not(:disabled) {
+  background: #005bb5;
+}
+
+button[type="submit"]:disabled {
   background: #ccc;
   cursor: not-allowed;
 }
 
+/* Coordinate inputs */
+.coord-inputs {
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.coord-inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.coord-inputs input {
+  min-width: 0;
+}
+
+/* Results */
 .results {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .results li {
-  padding: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.results li strong {
+  font-size: 0.95rem;
+}
+
+.results .label {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.results .coords {
+  color: #0070f3;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+.results .tags {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.results .place-id {
+  color: #999;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+/* Type badges for Suggest */
+.type-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.type-badge.place {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.type-badge.query {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+/* States */
+.loading {
+  color: #666;
+  padding: 1rem 0;
+}
+
+.error {
+  color: #d32f2f;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  background: #ffeef0;
+  border-radius: 6px;
 }

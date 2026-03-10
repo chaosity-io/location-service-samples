@@ -6,6 +6,7 @@ import {
   AutocompleteCommandOutput,
   AutocompleteResultItem,
   createTransformRequest,
+  fetchMapStyle,
   GeocodeCommand,
   GeocodeCommandInput,
   GeocodeCommandOutput,
@@ -14,10 +15,12 @@ import {
   ReverseGeocodeCommand,
   ReverseGeocodeCommandOutput
 } from '@chaosity/location-client'
-import { useLocationClient } from '@chaosity/location-client-react'
+import { useLocationClient, useMapLanguage } from '@chaosity/location-client-react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
 interface AddressResult {
   placeId?: string
@@ -40,7 +43,11 @@ export default function AddressFinder() {
   const politicalViewSelectRef = useRef<HTMLSelectElement>(null)
   const prevFilterCountryRef = useRef<string>('')
   const prevPoliticalViewRef = useRef<string>('')
-  const { config, client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
+  // Use a ref so mapClickHandler always reads the current language without stale closure
+  const languageRef = useRef<string>('en')
+
+  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
+  const { client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -56,13 +63,22 @@ export default function AddressFinder() {
   const [language, setLanguage] = useState<string>('en')
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
 
+  // Keep languageRef in sync so the map click handler always uses the current language
+  languageRef.current = language
+  // Track whether suggestions are open so the re-run effect doesn't re-open them after selection
+  const showSuggestionsRef = useRef(false)
+  showSuggestionsRef.current = showSuggestions
 
+  // Apply language to map labels whenever language or map instance changes.
+  // The hook also registers a 'style.load' listener, so language is reapplied after setStyle.
+  useMapLanguage(mapInstance, language)
 
+  // Initialize map once when auth is ready — style changes handled separately via setStyle
   useEffect(() => {
     if (!mapContainer.current) return
 
     async function initMap() {
-      if (clientLoading || !config || !client || !getToken) return
+      if (clientLoading || !client || !getToken) return
       if (clientError) {
         setError(clientError)
         setLoading(false)
@@ -70,42 +86,36 @@ export default function AddressFinder() {
       }
 
       try {
-        const params = new URLSearchParams({ 
-          'color-scheme': colorScheme,
-          'terrain': 'Hillshade',
-          ...(politicalView && { 'political-view': politicalView })
+        const style = await fetchMapStyle(API_URL, mapStyle, getToken, {
+          colorScheme: colorScheme as 'Light' | 'Dark',
+          terrain: 'Hillshade',
+          language: languageRef.current,
+          ...(politicalView && { politicalView }),
         })
-        const styleUrl = `${config.apiUrl}/maps/${mapStyle}/descriptor?${params.toString()}`
 
-        const mapInstance = new maplibregl.Map({
+        const instance = new maplibregl.Map({
           container: mapContainer.current!,
-          style: styleUrl,
+          style,
           center: mapState.current.center,
           zoom: mapState.current.zoom,
-          transformRequest: createTransformRequest(config.apiUrl, getToken),
+          transformRequest: createTransformRequest(API_URL, getToken),
         })
 
-        mapInstance.addControl(new maplibregl.NavigationControl(), 'top-right')
-        mapInstance.addControl(new maplibregl.ScaleControl())
-
-        mapInstance.addControl(new maplibregl.GeolocateControl({
+        instance.addControl(new maplibregl.NavigationControl(), 'top-right')
+        instance.addControl(new maplibregl.ScaleControl())
+        instance.addControl(new maplibregl.GeolocateControl({
           showUserLocation: true,
           trackUserLocation: true,
-          positionOptions: {
-            enableHighAccuracy: true
-          }
+          positionOptions: { enableHighAccuracy: true }
+        }))
+        instance.addControl(new maplibregl.GlobeControl())
 
-        }));
+        instance.on('click', mapClickHandler)
+        instance.getCanvas().style.cursor = 'crosshair'
 
-        mapInstance.addControl(new maplibregl.GlobeControl());
-
-
-        mapInstance.on('click', mapClickHandler)
-
-        mapInstance.getCanvas().style.cursor = 'crosshair'
-
+        map.current = instance
+        setMapInstance(instance)
         setLoading(false)
-        map.current = mapInstance
       } catch (err) {
         console.error('Map initialization error:', err)
         setError(err instanceof Error ? err.message : 'Failed to initialize map')
@@ -118,9 +128,15 @@ export default function AddressFinder() {
     return () => {
       if (marker.current) marker.current.remove()
       if (map.current) map.current.remove()
+      setMapInstance(null)
     }
-  }, [clientLoading, config?.apiUrl, clientError, getToken, mapStyle, colorScheme, politicalView])
+    // Intentionally excludes mapStyle/colorScheme/politicalView —
+    // style changes are handled by setStyle in the effect below to avoid full map recreation
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientLoading, clientError, getToken])
 
+  // Update map style in-place without destroying/recreating the map instance.
+  // Language changes are handled by useMapLanguage above — no need to include it here.
   useEffect(() => {
     const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
 
@@ -134,16 +150,16 @@ export default function AddressFinder() {
       if (mapStyle === 'Satellite') setPoliticalView('')
     }
 
-    if (map.current && config) {
-      const params = new URLSearchParams({
-        'color-scheme': colorScheme,
-        'terrain': 'Hillshade',
-        ...(politicalView && { 'political-view': politicalView })
-      })
-      const styleUrl = `${config.apiUrl}/maps/${mapStyle}/descriptor?${params.toString()}`
-      map.current.setStyle(styleUrl)
+    if (map.current && getToken) {
+      const currentMap = map.current
+      fetchMapStyle(API_URL, mapStyle, getToken, {
+        colorScheme: colorScheme as 'Light' | 'Dark',
+        terrain: 'Hillshade',
+        language: languageRef.current,
+        ...(politicalView && { politicalView }),
+      }).then(style => currentMap.setStyle(style))
     }
-  }, [mapStyle, colorScheme, politicalView, config, loading])
+  }, [mapStyle, colorScheme, politicalView, loading, getToken])
 
   const flyToCountryCenter = useCallback(async (countryCode: string) => {
     if (!client || !countryCode) return
@@ -156,13 +172,14 @@ export default function AddressFinder() {
       const countryGeocode = response.ResultItems?.find(item => item.PlaceType?.includes('Country'))
 
       if (countryGeocode && map.current) {
-        map.current.flyTo({
-          center: countryGeocode.Position as [number, number],
-          speed: 1.2,
-          curve: 1.4,
-        })
         if (countryGeocode.MapView) {
           map.current.fitBounds(countryGeocode.MapView as [number, number, number, number], { padding: 20 })
+        } else if (countryGeocode.Position) {
+          map.current.flyTo({
+            center: countryGeocode.Position as [number, number],
+            speed: 1.2,
+            curve: 1.4,
+          })
         }
       }
     } catch (err) {
@@ -184,7 +201,8 @@ export default function AddressFinder() {
     prevPoliticalViewRef.current = politicalView
   }, [filterCountry, politicalView, flyToCountryCenter])
 
-
+  // mapClickHandler is attached to the map once at init — uses languageRef to avoid
+  // stale closures when the user changes the language dropdown
   const mapClickHandler = useCallback(async (e: maplibregl.MapMouseEvent) => {
     if (!client) return
     const { lng, lat } = e.lngLat
@@ -192,7 +210,7 @@ export default function AddressFinder() {
     try {
       const command = new ReverseGeocodeCommand({
         QueryPosition: [lng, lat],
-        Language: 'en',
+        Language: languageRef.current,
       })
       const response: ReverseGeocodeCommandOutput = await client.send(command)
       const result = response.ResultItems?.[0]
@@ -204,7 +222,7 @@ export default function AddressFinder() {
             ? `${result.Address.AddressNumber} ${result.Address.Street || ''}`.trim()
             : result.Address?.Street,
           city: result.Address?.Locality,
-          // province: result.Address?.Region,
+          province: result.Address?.Region?.Name,
           postalCode: result.Address?.PostalCode,
           country: result.Address?.Country?.Code3 ?? result.Address?.Country?.Name ?? undefined,
           position: [lng, lat],
@@ -221,7 +239,7 @@ export default function AddressFinder() {
     } catch (err) {
       console.error('Map click reverse geocode error:', err)
     }
-  }, [client, getToken])
+  }, [client])
 
   const searchAddress = useCallback((searchQuery: string) => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
@@ -281,7 +299,15 @@ export default function AddressFinder() {
         console.error('Search error:', err)
       }
     }, 300)
-  }, [client])
+  }, [client, searchMode, language, filterCountry])
+
+  // Re-run the current query whenever language, filterCountry, or searchMode changes,
+  // but only when the suggestions dropdown is already open (don't re-open after selection).
+  // query is intentionally omitted — adding it would re-search on every keystroke.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (showSuggestionsRef.current && query.length >= 3) searchAddress(query)
+  }, [searchAddress])
 
   const selectAddress = useCallback(async (suggestion: AutocompleteResultItem) => {
     if (!client || !suggestion.PlaceId) return
@@ -302,7 +328,7 @@ export default function AddressFinder() {
           ? `${response.Address.AddressNumber} ${response.Address.Street || ''}`.trim()
           : response.Address?.Street,
         city: response.Address?.Locality,
-        // province: response.Address?.Region,
+        province: response.Address?.Region?.Name,
         postalCode: response.Address?.PostalCode,
         country: response.Address?.Country?.Code3 ?? response.Address?.Country?.Name ?? undefined,
         position: response.Position as [number, number],
@@ -340,7 +366,7 @@ export default function AddressFinder() {
       try {
         const command = new ReverseGeocodeCommand({
           QueryPosition: [longitude, latitude],
-          Language: 'en',
+          Language: language,
         })
 
         const response: ReverseGeocodeCommandOutput = await client.send(command)
@@ -353,7 +379,7 @@ export default function AddressFinder() {
               ? `${result.Address.AddressNumber} ${result.Address.Street || ''}`.trim()
               : result.Address?.Street,
             city: result.Address?.Locality,
-            // province: result.Address?.Region,
+            province: result.Address?.Region?.Name,
             postalCode: result.Address?.PostalCode,
             country: result.Address?.Country?.Code3 ?? result.Address?.Country?.Name ?? undefined,
             position: [longitude, latitude],
@@ -374,11 +400,11 @@ export default function AddressFinder() {
         console.error('Reverse geocode error:', err)
       }
     })
-  }, [client])
+  }, [client, language])
 
   if (error) {
     return (
-      <div className="w-full h-[600px] bg-red-50 rounded-lg flex items-center justify-center">
+      <div className="w-full h-150 bg-red-50 rounded-lg flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 font-semibold">Failed to load</p>
           <p className="text-red-500 text-sm mt-2">{error}</p>
@@ -613,7 +639,7 @@ export default function AddressFinder() {
         </div>
       </div>
 
-      <div className="relative w-full h-[500px] bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="relative w-full h-125 bg-white rounded-lg shadow-lg overflow-hidden">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
             <div className="text-center">

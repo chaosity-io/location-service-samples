@@ -1,5 +1,3 @@
-import { decodeJwt } from 'jose'
-
 interface TokenCache {
   token: string
   expiresAt: number // Unix timestamp in seconds
@@ -12,7 +10,7 @@ export class TokenManager {
     private apiUrl: string,
     private clientId: string,
     private clientSecret: string
-  ) { 
+  ) {
     this.getToken();
   }
 
@@ -29,10 +27,10 @@ export class TokenManager {
     const response = await fetch(`${this.apiUrl}/auth/token`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${btoa(`${this.clientId}:${this.clientSecret}`)}`
-      }
+      },
+      body: 'grant_type=client_credentials'
     })
 
     if (!response.ok) {
@@ -40,12 +38,13 @@ export class TokenManager {
     }
 
     const data = await response.json()
-    const decoded = decodeJwt(data.access_token)
 
-    // Cache token with expiry from JWT
+    // Cache token with expiry from OAuth2 response (prefer absolute expires_at)
     this.cache = {
       token: data.access_token,
-      expiresAt: decoded.exp || Math.floor(Date.now() / 1000) + 3600
+      expiresAt: data.expires_at
+        ? Math.floor(data.expires_at / 1000)
+        : Math.floor(Date.now() / 1000) + (data.expires_in || 3600)
     }
 
     return this.cache.token

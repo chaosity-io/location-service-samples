@@ -1,5 +1,4 @@
 import ClientOAuth2 from 'client-oauth2'
-import { decodeJwt } from 'jose'
 
 interface TokenCache {
   token: string
@@ -20,7 +19,7 @@ export class TokenManager {
       clientSecret: this.clientSecret,
       accessTokenUri: `${this.apiUrl}/auth/token`,
     })
-    
+
     this.getToken()
   }
 
@@ -33,11 +32,12 @@ export class TokenManager {
     console.log('Generating new token')
 
     const token = await this.oauth2Client.credentials.getToken()
-    const decoded = decodeJwt(token.accessToken)
 
     this.cache = {
       token: token.accessToken,
-      expiresAt: decoded.exp || Math.floor(Date.now() / 1000) + 3600
+      expiresAt: token.data.expires_at
+        ? Math.floor(token.data.expires_at / 1000)
+        : Math.floor(Date.now() / 1000) + (token.data.expires_in || 3600)
     }
 
     return this.cache.token

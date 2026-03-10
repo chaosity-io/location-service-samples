@@ -41,6 +41,7 @@ Educational example showing OAuth 2.0 client credentials flow with custom token 
    LOCATION_API_URL=https://api.yourdomain.com
    LOCATION_CLIENT_ID=your_client_id
    LOCATION_CLIENT_SECRET=your_client_secret
+   LOCATION_ALLOWED_DOMAIN=example.com
    PORT=3000
    ```
 
@@ -108,10 +109,10 @@ curl -X POST http://localhost:3000/api/suggest \
 const response = await fetch(`${apiUrl}/auth/token`, {
   method: 'POST',
   headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    'Content-Type': 'application/x-www-form-urlencoded',
     'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`
-  }
+  },
+  body: 'grant_type=client_credentials'
 })
 
 const data = await response.json()
@@ -149,12 +150,12 @@ async getToken(): Promise<string> {
 // In Express endpoint handler
 app.post('/api/search', async (req, res) => {
   const token = await tokenManager.getToken()
-  
+
   const response = await fetch(`${LOCATION_API_URL}/address/search/text`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Origin': req.headers.origin || 'http://localhost:3000',
+      'Origin': process.env.LOCATION_ALLOWED_DOMAIN,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -162,20 +163,19 @@ app.post('/api/search', async (req, res) => {
       MaxResults: req.body.maxResults || 5
     })
   })
-  
+
   const data = await response.json()
   res.json(data)
 })
 ```
 
 ### Origin Header Required
-The `Origin` header must match one of the allowed origins configured in your application settings.
+The `Origin` header must match one of the allowed domains configured in your application settings.
 
-**Important:** 
-- The server forwards the `Origin` header from the incoming request (`req.headers.origin`)
+**Important:**
+- Set `LOCATION_ALLOWED_DOMAIN` in your `.env` to your configured domain (e.g., `example.com`)
+- The value is the domain name without protocol (not `https://example.com`)
 - In browsers, the `Origin` header is set automatically by the browser
-- In Node.js/server environments, you must set it manually
-- Must match exactly (including protocol and port)
 
 ### Error Handling
 ```typescript
@@ -211,35 +211,35 @@ Test token generation and API calls directly with curl:
 # Generate token
 TOKEN=$(curl -X POST "$LOCATION_API_URL/auth/token" \
   -u "$LOCATION_CLIENT_ID:$LOCATION_CLIENT_SECRET" \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d 'grant_type=client_credentials' \
   | jq -r '.access_token')
 
 # Search
 curl -X POST "$LOCATION_API_URL/address/search/text" \
   -H "Authorization: Bearer $TOKEN" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -H "Content-Type: application/json" \
   -d '{"QueryText": "Space Needle", "MaxResults": 5}'
 
 # Reverse Geocode
 curl -X POST "$LOCATION_API_URL/address/search/reverse-geocode" \
   -H "Authorization: Bearer $TOKEN" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -H "Content-Type: application/json" \
   -d '{"QueryPosition": [-122.3493, 47.6205]}'
 
 # Autocomplete
 curl -X POST "$LOCATION_API_URL/address/suggestion" \
   -H "Authorization: Bearer $TOKEN" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -H "Content-Type: application/json" \
   -d '{"QueryText": "star", "MaxResults": 5}'
 ```
 
 ## Learn More
 
-- [Documentation](https://docs.chaosity.io)
-- [Authentication Guide](https://docs.chaosity.io/docs/authentication)
-- [Token-Based Auth Method](https://docs.chaosity.io/docs/authentication/methods#method-2-token-based-authentication)
+- [Documentation](https://docs.chaosity.cloud)
+- [Authentication Guide](https://docs.chaosity.cloud/docs/authentication)
+- [Token-Based Auth Method](https://docs.chaosity.cloud/docs/authentication/methods#method-2-token-based-authentication)
 - **For production:** [nodejs-client-library](../nodejs-client-library) with automatic token management

@@ -1,6 +1,7 @@
 import express from 'express'
 import dotenv from 'dotenv'
-import { LocationServiceConnector, SearchTextCommand, ReverseGeocodeCommand, SuggestCommand } from '@chaosity/location-client'
+import { LocationServiceConnector } from '@chaosity/location-client/server'
+import { SearchTextCommand, ReverseGeocodeCommand, SuggestCommand } from '@chaosity/location-client'
 
 
 dotenv.config()
@@ -44,7 +45,6 @@ app.post('/api/search', async (req, res) => {
 app.post('/api/reverse-geocode', async (req, res) => {
   try {
     const { position } = req.body
-    req.headers
 
     if (!position || !Array.isArray(position) || position.length !== 2) {
       return res.status(400).json({ error: 'Valid position [lng, lat] is required' })

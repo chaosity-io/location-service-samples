@@ -8,8 +8,8 @@ const app = express()
 app.use(express.json())
 
 // Validate environment variables
-const { LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET, PORT = '3000' } = process.env
-if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET) {
+const { LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET, LOCATION_ALLOWED_DOMAIN, PORT = '3000' } = process.env
+if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET || !LOCATION_ALLOWED_DOMAIN) {
   throw new Error('Missing required environment variables')
 }
 
@@ -22,48 +22,30 @@ const tokenManager = new TokenManager(
 
 console.log('✓ Token manager initialized')
 
-// Helper to get Origin header from request
-function getOriginHeader(req: express.Request): Record<string, string> {
-  // Priority: origin > referer > construct from host
-  if (req.headers.origin) {
-    return { 'Origin': req.headers.origin }
-  }
-  
-  if (req.headers.referer) {
-    try {
-      const url = new URL(req.headers.referer)
-      return { 'Origin': url.origin }
-    } catch {
-      // Invalid referer, continue
-    }
-  }
-  
-  // Construct from host header
-  if (req.headers.host) {
-    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'
-    return { 'Origin': `${protocol}://${req.headers.host}` }
-  }
-  
-  return {}
-}
-
 // Helper function for API requests
-async function makeRequest(endpoint: string, body: any, headers: Record<string, string> = {}) {
+async function makeRequest(endpoint: string, body: any) {
   const token = await tokenManager.getToken()
-  
+
   const response = await fetch(`${LOCATION_API_URL}${endpoint}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...headers
+      'Origin': LOCATION_ALLOWED_DOMAIN,
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify(body)
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Request failed')
+    const errorText = await response.text()
+    let message = 'Request failed'
+    try {
+      const errorData = JSON.parse(errorText)
+      message = errorData.message || message
+    } catch {
+      if (errorText) message = errorText
+    }
+    throw new Error(message)
   }
 
   return response.json()
@@ -82,7 +64,7 @@ app.post('/api/search', async (req, res) => {
       QueryText: query,
       BiasPosition: biasPosition,
       MaxResults: maxResults
-    }, getOriginHeader(req))
+    })
 
     res.json(result)
   } catch (error: any) {
@@ -102,7 +84,7 @@ app.post('/api/reverse-geocode', async (req, res) => {
 
     const result = await makeRequest('/address/search/reverse-geocode', {
       QueryPosition: position
-    }, getOriginHeader(req))
+    })
 
     res.json(result)
   } catch (error: any) {
@@ -124,7 +106,7 @@ app.post('/api/suggest', async (req, res) => {
       QueryText: query,
       BiasPosition: biasPosition,
       MaxResults: maxResults
-    }, getOriginHeader(req))
+    })
 
     res.json(result)
   } catch (error: any) {

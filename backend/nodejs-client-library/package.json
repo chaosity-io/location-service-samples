@@ -10,7 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@chaosity/location-client": "file:../../../location-service-client",
+    "@chaosity/location-client": "^0.1.6",
     "express": "^4.18.2",
     "dotenv": "^16.3.1"
   },

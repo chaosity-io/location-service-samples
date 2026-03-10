@@ -7,12 +7,11 @@ const app = express()
 app.use(express.json())
 
 // Validate environment variables
-const { LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET, PORT = '3000' } = process.env
-if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET ) {
+const { LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET, LOCATION_ALLOWED_DOMAIN, PORT = '3000' } = process.env
+if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET || !LOCATION_ALLOWED_DOMAIN) {
   throw new Error('Missing required environment variables')
 }
 
-const origin = `http://localhost:${PORT}`
 // Create Basic Auth header
 const authHeader = `Basic ${btoa(`${LOCATION_CLIENT_ID}:${LOCATION_CLIENT_SECRET}`)}`
 
@@ -24,15 +23,22 @@ async function makeRequest(endpoint: string, body: any) {
     method: 'POST',
     headers: {
       'Authorization': authHeader,
-      'Origin': origin,
+      'Origin': LOCATION_ALLOWED_DOMAIN,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(body)
   })
 
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Request failed')
+    const errorText = await response.text()
+    let message = 'Request failed'
+    try {
+      const errorData = JSON.parse(errorText)
+      message = errorData.message || message
+    } catch {
+      if (errorText) message = errorText
+    }
+    throw new Error(message)
   }
 
   return response.json()

@@ -59,10 +59,10 @@ Frontend integration examples for web applications.
 
 ## 📚 Documentation
 
-- [Setup Guide](https://docs.chaosity.io/docs/get-started/setup) - Get started in 5 minutes
-- [Authentication](https://docs.chaosity.io/docs/authentication) - All authentication methods
-- [Places API](https://docs.chaosity.io/api/places) - Geocoding and search
-- [Maps API](https://docs.chaosity.io/api/maps) - Map tiles and styles
+- [Setup Guide](https://docs.chaosity.cloud/docs/get-started/setup) - Get started in 5 minutes
+- [Authentication](https://docs.chaosity.cloud/docs/authentication) - All authentication methods
+- [Places API](https://docs.chaosity.cloud/api/places) - Geocoding and search
+- [Maps API](https://docs.chaosity.cloud/api/maps) - Map tiles and styles
 
 ## 🔑 Getting Credentials
 
@@ -123,9 +123,9 @@ MIT License - see [LICENSE](./LICENSE) for details
 
 ## 💬 Support
 
-- **Documentation:** https://docs.chaosity.io
+- **Documentation:** https://docs.chaosity.cloud
 - **Issues:** https://github.com/chaosity-io/location-service-samples/issues
-- **Email:** support@chaosity.io
+- **Email:** support@chaosity.cloud
 
 ---
 
@@ -154,5 +154,5 @@ sample-name/
 
 - [Client Library (npm)](https://www.npmjs.com/package/@chaosity/location-client)
 - [React Client (npm)](https://www.npmjs.com/package/@chaosity/location-client-react)
-- [API Reference](https://docs.chaosity.io/api)
+- [API Reference](https://docs.chaosity.cloud/api)
 - [Changelog](./CHANGELOG.md)

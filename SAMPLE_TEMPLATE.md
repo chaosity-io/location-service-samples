@@ -66,7 +66,7 @@ See `.env.example` for required variables:
 - `LOCATION_SERVICE_CLIENT_ID` - Your client ID
 - `LOCATION_SERVICE_CLIENT_SECRET` - Your client secret
 
-Get credentials at [portal.chaosity.io](https://portal.chaosity.io)
+Get credentials at [portal.chaosity.cloud](https://portal.chaosity.cloud)
 
 ## Key Concepts
 
@@ -84,9 +84,9 @@ Explain the main concepts demonstrated:
 
 ## Learn More
 
-- [API Documentation](https://docs.chaosity.io)
+- [API Documentation](https://docs.chaosity.cloud)
 - [NPM Package](https://www.npmjs.com/package/@chaosity/location-client)
-- [Developer Portal](https://portal.chaosity.io)
+- [Developer Portal](https://portal.chaosity.cloud)
 
 ## License
 
@@ -97,7 +97,7 @@ MIT
 
 ```bash
 # Chaosity Location Service Configuration
-LOCATION_SERVICE_API_URL=https://api.chaosity.io/v1
+LOCATION_SERVICE_API_URL=https://api.chaosity.cloud/v1
 LOCATION_SERVICE_CLIENT_ID=your_client_id_here
 LOCATION_SERVICE_CLIENT_SECRET=your_client_secret_here
 

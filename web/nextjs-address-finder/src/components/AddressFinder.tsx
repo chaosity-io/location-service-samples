@@ -19,6 +19,8 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
+
 interface AddressResult {
   placeId?: string
   label?: string
@@ -36,7 +38,7 @@ export default function AddressFinder() {
   const map = useRef<maplibregl.Map | null>(null)
   const marker = useRef<maplibregl.Marker | null>(null)
   const mapState = useRef<{ center: [number, number]; zoom: number }>({ center: [-98.5, 39.8], zoom: 4 })
-  const { config, client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
+  const { client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -45,38 +47,13 @@ export default function AddressFinder() {
   const [selectedAddress, setSelectedAddress] = useState<AddressResult | null>(null)
   const [isValidating, setIsValidating] = useState(false)
   const [searchMode, setSearchMode] = useState<'autocomplete' | 'geocode'>('autocomplete')
-  const [visibleCountries, setVisibleCountries] = useState<string[]>([])
-  const currentToken = getToken()
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
-
-
-  function useDependencyDebugger(dependencies: any[], dependencyNames: string[]) {
-    const previousDeps = useRef<any[]>([])
-
-    useEffect(() => {
-      dependencies.forEach((dep, i) => {
-        if (previousDeps.current[i] !== dep) {
-          console.log(`[Dependency Changed] ${dependencyNames[i]}:`, {
-            previous: previousDeps.current[i],
-            current: dep
-          })
-        }
-      })
-      previousDeps.current = dependencies
-    })
-  }
-
-  // Usage in your component:
-  useDependencyDebugger(
-    [clientLoading, config?.apiUrl, client, clientError, getToken, currentToken],
-    ['clientLoading', 'config', 'client', 'clientError', 'getToken', 'currentToken']
-  )
 
   useEffect(() => {
     if (!mapContainer.current) return
 
     async function initMap() {
-      if (clientLoading || !config || !client || !getToken) return
+      if (clientLoading || !client || !getToken) return
       if (clientError) {
         setError(clientError)
         setLoading(false)
@@ -84,35 +61,27 @@ export default function AddressFinder() {
       }
 
       try {
-
         const params = new URLSearchParams({ 'color-scheme': 'Light', 'terrain': 'Hillshade' })
-        const styleUrl = `${config.apiUrl}/maps/Standard/descriptor?${params.toString()}`
+        const styleUrl = `${API_URL}/maps/Standard/descriptor?${params.toString()}`
 
         const mapInstance = new maplibregl.Map({
           container: mapContainer.current!,
           style: styleUrl,
           center: mapState.current.center,
           zoom: mapState.current.zoom,
-          transformRequest: createTransformRequest(config.apiUrl, getToken),
+          transformRequest: createTransformRequest(API_URL, getToken),
         })
 
         mapInstance.addControl(new maplibregl.NavigationControl(), 'top-right')
         mapInstance.addControl(new maplibregl.ScaleControl())
-
         mapInstance.addControl(new maplibregl.GeolocateControl({
           showUserLocation: true,
           trackUserLocation: true,
-          positionOptions: {
-            enableHighAccuracy: true
-          }
-
-        }));
-
-        mapInstance.addControl(new maplibregl.GlobeControl());
-
+          positionOptions: { enableHighAccuracy: true }
+        }))
+        mapInstance.addControl(new maplibregl.GlobeControl())
 
         mapInstance.on('click', mapClickHandler)
-
         mapInstance.getCanvas().style.cursor = 'crosshair'
 
         setLoading(false)
@@ -130,8 +99,7 @@ export default function AddressFinder() {
       if (marker.current) marker.current.remove()
       if (map.current) map.current.remove()
     }
-  }, [clientLoading, config?.apiUrl, clientError, getToken])
-
+  }, [clientLoading, clientError, getToken])
 
   const mapClickHandler = useCallback(async (e: maplibregl.MapMouseEvent) => {
     if (!client) return
@@ -152,7 +120,7 @@ export default function AddressFinder() {
             ? `${result.Address.AddressNumber} ${result.Address.Street || ''}`.trim()
             : result.Address?.Street,
           city: result.Address?.Locality,
-          // province: result.Address?.Region,
+          province: result.Address?.Region?.Name,
           postalCode: result.Address?.PostalCode,
           country: result.Address?.Country?.Code3 ?? result.Address?.Country?.Name ?? undefined,
           position: [lng, lat],
@@ -169,7 +137,7 @@ export default function AddressFinder() {
     } catch (err) {
       console.error('Map click reverse geocode error:', err)
     }
-  }, [client, getToken])
+  }, [client])
 
   const searchAddress = useCallback((searchQuery: string) => {
     if (debounceTimer.current) {
@@ -182,71 +150,70 @@ export default function AddressFinder() {
     }
 
     debounceTimer.current = setTimeout(async () => {
+      // Get map center and reverse geocode to find country
+      const center = map.current!.getCenter()
+      const reverseCmd = new ReverseGeocodeCommand({
+        QueryPosition: [center.lng, center.lat],
+        Language: 'en',
+      })
+      const reverseRes: ReverseGeocodeCommandOutput = await client.send(reverseCmd)
+      const countryCode = reverseRes.ResultItems?.[0]?.Address?.Country?.Code3
 
-    // Get map center and reverse geocode to find country
-    const center = map.current!.getCenter()
-    const reverseCmd = new ReverseGeocodeCommand({
-      QueryPosition: [center.lng, center.lat],
-      Language: 'en',
-    })
-    const reverseRes: ReverseGeocodeCommandOutput = await client.send(reverseCmd)
-    const countryCode = reverseRes.ResultItems?.[0]?.Address?.Country?.Code3
-
-    try {
-      if (searchMode === 'geocode') {
-
-
-        const commandInput: GeocodeCommandInput = {
-          QueryText: searchQuery,
-          BiasPosition: [center.lng, center.lat],
-          MaxResults: 5,
-          Language: 'en',
-        }
-
-        if (countryCode) {
-          commandInput.Filter = {
-            IncludeCountries: [countryCode],
+      try {
+        if (searchMode === 'geocode') {
+          const commandInput: GeocodeCommandInput = {
+            QueryText: searchQuery,
+            BiasPosition: [center.lng, center.lat],
+            MaxResults: 5,
+            Language: 'en',
           }
-        }
 
-        const command = new GeocodeCommand(commandInput)
-        const response: GeocodeCommandOutput = await client.send(command)
-
-        const geocodeResults: AutocompleteResultItem[] = (response.ResultItems || []).map(item => ({
-          Title: item.Address?.Label || '',
-          Address: item.Address,
-          PlaceId: item.PlaceId,
-          PlaceType: 'Street' as const,
-        }))
-
-        setSuggestions(geocodeResults)
-        setShowSuggestions(true)
-      } else {
-
-        const commandInput: AutocompleteCommandInput = {
-          QueryText: searchQuery,
-          MaxResults: 5,
-          Language: 'en',
-          BiasPosition: [center.lng, center.lat],
-        }
-
-        if (countryCode) {
-          commandInput.Filter = {
-            IncludeCountries: [countryCode],
+          if (countryCode) {
+            commandInput.Filter = { IncludeCountries: [countryCode] }
           }
+
+          const command = new GeocodeCommand(commandInput)
+          const response: GeocodeCommandOutput = await client.send(command)
+
+          const geocodeResults: AutocompleteResultItem[] = (response.ResultItems || []).map(item => ({
+            Title: item.Address?.Label || '',
+            Address: item.Address,
+            PlaceId: item.PlaceId,
+            PlaceType: 'Street' as const,
+          }))
+
+          setSuggestions(geocodeResults)
+          setShowSuggestions(true)
+        } else {
+          const commandInput: AutocompleteCommandInput = {
+            QueryText: searchQuery,
+            MaxResults: 5,
+            Language: 'en',
+            BiasPosition: [center.lng, center.lat],
+          }
+
+          if (countryCode) {
+            commandInput.Filter = { IncludeCountries: [countryCode] }
+          }
+
+          const command = new AutocompleteCommand(commandInput)
+          const response: AutocompleteCommandOutput = await client.send(command)
+
+          setSuggestions(response.ResultItems || [])
+          setShowSuggestions(true)
         }
-
-        const command = new AutocompleteCommand(commandInput)
-        const response: AutocompleteCommandOutput = await client.send(command)
-
-        setSuggestions(response.ResultItems || [])
-        setShowSuggestions(true)
+      } catch (err) {
+        console.error('Search error:', err)
       }
-    } catch (err) {
-      console.error('Search error:', err)
-    }
     }, 800)
   }, [client, searchMode])
+
+  // Re-run the current query when searchMode changes (Autocomplete ↔ Geocode).
+  // query is intentionally omitted — adding it would re-search on every keystroke.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (query.length >= 3) searchAddress(query)
+  }, [searchAddress])
 
   const selectAddress = useCallback(async (suggestion: AutocompleteResultItem) => {
     if (!client || !suggestion.PlaceId) return
@@ -267,7 +234,7 @@ export default function AddressFinder() {
           ? `${response.Address.AddressNumber} ${response.Address.Street || ''}`.trim()
           : response.Address?.Street,
         city: response.Address?.Locality,
-        // province: response.Address?.Region,
+        province: response.Address?.Region?.Name,
         postalCode: response.Address?.PostalCode,
         country: response.Address?.Country?.Code3 ?? response.Address?.Country?.Name ?? undefined,
         position: response.Position as [number, number],
@@ -318,7 +285,7 @@ export default function AddressFinder() {
               ? `${result.Address.AddressNumber} ${result.Address.Street || ''}`.trim()
               : result.Address?.Street,
             city: result.Address?.Locality,
-            // province: result.Address?.Region,
+            province: result.Address?.Region?.Name,
             postalCode: result.Address?.PostalCode,
             country: result.Address?.Country?.Code3 ?? result.Address?.Country?.Name ?? undefined,
             position: [longitude, latitude],

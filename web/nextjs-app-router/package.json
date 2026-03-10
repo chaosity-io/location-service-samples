@@ -9,10 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@chaosity/location-client": "file:../../../location-service-client",
-    "@chaosity/location-client-react": "file:../../../location-service-client-react",
-    
-    "maplibre-gl": "^5.0.0",
+    "@chaosity/location-client": "^0.1.6",
+    "@chaosity/location-client-react": "^0.1.7",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -22,7 +22,7 @@ Cross-platform mobile apps for iOS and Android using React Native.
 ## Common Setup
 
 All mobile samples require:
-- API credentials from [portal.chaosity.io](https://portal.chaosity.io)
+- API credentials from [portal.chaosity.cloud](https://portal.chaosity.cloud)
 - Platform-specific development environment
 - `.env` file with credentials
 

@@ -7,7 +7,7 @@ Address autocomplete and validation using AWS Location Service. Searches within 
 ```bash
 npm install
 cp .env.example .env  # Add your credentials
-npm run dev           # http://localhost:3003
+npm run dev           # http://localhost:3001
 ```
 
 ## Features
@@ -107,4 +107,10 @@ src/
 ## Related
 
 - [nextjs-map-demo](../nextjs-map-demo/) - Full map with styles/filters
-- [nextjs-app-router](../nextjs-app-router/) - Basic geocoding
+- [nextjs-app-router](../nextjs-app-router/) - All Places API demos
+
+## Learn More
+
+- [Documentation](https://docs.chaosity.cloud)
+- [Client Libraries](https://docs.chaosity.cloud/docs/client-libraries)
+- [Authentication Guide](https://docs.chaosity.cloud/docs/authentication)

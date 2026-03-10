@@ -48,6 +48,7 @@
    LOCATION_API_URL=https://api.yourdomain.com
    LOCATION_CLIENT_ID=your_client_id
    LOCATION_CLIENT_SECRET=your_client_secret
+   LOCATION_ALLOWED_DOMAIN=example.com
    PORT=3000
    ```
 
@@ -126,7 +127,7 @@ const response = await fetch(`${LOCATION_API_URL}/address/search/text`, {
   method: 'POST',
   headers: {
     'Authorization': authHeader,
-    'Origin': 'http://localhost:3000', // Must match allowed origins
+    'Origin': process.env.LOCATION_ALLOWED_DOMAIN, // Must match allowed domain
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
@@ -139,12 +140,12 @@ const data = await response.json()
 ```
 
 ### Origin Header Required
-The `Origin` header must match one of the allowed origins configured in your application settings.
+The `Origin` header must match one of the allowed domains configured in your application settings.
 
-**Important:** 
-- In browsers, the `Origin` header is set automatically
-- In Node.js/server environments, you must set it manually
-- Must match exactly (including protocol and port)
+**Important:**
+- Set `LOCATION_ALLOWED_DOMAIN` in your `.env` to your configured domain (e.g., `example.com`)
+- The value is the domain name without protocol (not `https://example.com`)
+- In browsers, the `Origin` header is set automatically by the browser
 
 ### Error Handling
 ```typescript
@@ -171,28 +172,28 @@ Test the Location Service API directly with curl:
 # Search
 curl -X POST "$LOCATION_API_URL/address/search/text" \
   -u "$LOCATION_CLIENT_ID:$LOCATION_CLIENT_SECRET" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -H "Content-Type: application/json" \
   -d '{"QueryText": "Space Needle", "MaxResults": 5}'
 
 # Reverse Geocode
 curl -X POST "$LOCATION_API_URL/address/search/reverse-geocode" \
   -u "$LOCATION_CLIENT_ID:$LOCATION_CLIENT_SECRET" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -H "Content-Type: application/json" \
   -d '{"QueryPosition": [-122.3493, 47.6205]}'
 
 # Autocomplete
 curl -X POST "$LOCATION_API_URL/address/suggestion" \
   -u "$LOCATION_CLIENT_ID:$LOCATION_CLIENT_SECRET" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -H "Content-Type: application/json" \
   -d '{"QueryText": "star", "MaxResults": 5}'
 ```
 
 ## Learn More
 
-- [Documentation](https://docs.chaosity.io)
-- [Authentication Guide](https://docs.chaosity.io/docs/authentication)
-- [Direct Auth Method](https://docs.chaosity.io/docs/authentication/methods#method-1-direct-authentication)
+- [Documentation](https://docs.chaosity.cloud)
+- [Authentication Guide](https://docs.chaosity.cloud/docs/authentication)
+- [Direct Auth Method](https://docs.chaosity.cloud/docs/authentication/methods#method-1-direct-authentication)
 - **For production:** [nodejs-client-library](../nodejs-client-library) with automatic token management

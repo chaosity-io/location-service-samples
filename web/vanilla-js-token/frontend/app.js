@@ -1,10 +1,11 @@
 // Token cache
 let tokenCache = null
+const REFRESH_BUFFER_MS = 60_000 // Refresh 60s before expiry
 
 // Get token from backend (with caching)
 async function getToken() {
-  // Return cached token if still valid
-  if (tokenCache && Date.now() < tokenCache.expires_at) {
+  // Return cached token if still valid (with buffer to avoid mid-request expiry)
+  if (tokenCache && Date.now() < tokenCache.expires_at - REFRESH_BUFFER_MS) {
     console.log('Using cached token')
     return tokenCache
   }
@@ -55,20 +56,32 @@ async function searchPlaces(query) {
 // Display results
 function displayResults(results) {
   const resultsDiv = document.getElementById('results')
-  
+  resultsDiv.innerHTML = ''
+
   if (results.length === 0) {
-    resultsDiv.innerHTML = '<p>No results found</p>'
+    const p = document.createElement('p')
+    p.textContent = 'No results found'
+    resultsDiv.appendChild(p)
     return
   }
 
-  const html = results.map(item => `
-    <div class="result-item">
-      <strong>${item.Title}</strong><br>
-      <small>${item.Address?.Label || 'No address'}</small>
-    </div>
-  `).join('')
+  for (const item of results) {
+    const div = document.createElement('div')
+    div.className = 'result-item'
 
-  resultsDiv.innerHTML = html
+    const title = document.createElement('strong')
+    title.textContent = item.Title
+    div.appendChild(title)
+
+    if (item.Address?.Label) {
+      div.appendChild(document.createElement('br'))
+      const address = document.createElement('small')
+      address.textContent = item.Address.Label
+      div.appendChild(address)
+    }
+
+    resultsDiv.appendChild(div)
+  }
 }
 
 // Event listeners
@@ -84,8 +97,12 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
     const results = await searchPlaces(query)
     displayResults(results)
   } catch (error) {
-    document.getElementById('results').innerHTML = 
-      `<p class="error">Error: ${error.message}</p>`
+    const resultsDiv = document.getElementById('results')
+    resultsDiv.innerHTML = ''
+    const p = document.createElement('p')
+    p.className = 'error'
+    p.textContent = `Error: ${error.message}`
+    resultsDiv.appendChild(p)
   } finally {
     btn.disabled = false
     btn.textContent = 'Search'

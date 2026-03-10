@@ -1,7 +1,12 @@
 'use client'
 
-import { GeocodeCommand, GeocodeCommandInput, GeocodeCommandOutput } from '@chaosity/location-client'
-import { GeoPlaces, createTransformRequest } from '@chaosity/location-client'
+import {
+  GeocodeCommand,
+  type GeocodeCommandInput,
+  type GeocodeCommandOutput,
+  GeoPlaces,
+  createTransformRequest,
+} from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
@@ -26,7 +31,6 @@ export default function MapDemo() {
   const [politicalView, setPoliticalView] = useState('')
   const [filterCountry, setFilterCountry] = useState<string>('')
   const [language, setLanguage] = useState<string>('en')
-  const currentToken = getToken()
 
   const recurseExpression = useCallback((exp: any, prevPropertyRegex: RegExp, nextProperty: string): any => {
     if (!Array.isArray(exp)) return exp
@@ -64,15 +68,16 @@ export default function MapDemo() {
   }, [updateLayer])
 
   const getStyleWithPreferredLanguage = useCallback(async (styleUrl: string, language: string) => {
+    const token = getToken()
     const res = await fetch(styleUrl, {
       headers: {
-        'Authorization': `Bearer ${config?.token}`,
+        'Authorization': `Bearer ${token}`,
         'Accept': 'application/json'
       }
     })
     const style = await res.json()
     return setPreferredLanguage(style, language)
-  }, [config, setPreferredLanguage])
+  }, [getToken, setPreferredLanguage])
 
   const flyToCountryCenter = useCallback(async (countryCode: string) => {
     if (clientLoading || !config || !client) return
@@ -193,7 +198,7 @@ export default function MapDemo() {
         map.current = null
       }
     }
-  }, [clientLoading, config?.apiUrl, client, clientError, getToken, colorScheme, mapStyle, currentToken])
+  }, [clientLoading, config?.apiUrl, client, clientError, getToken, colorScheme, mapStyle])
 
   useEffect(() => {
     const filterCountryChanged = prevFilterCountryRef.current !== filterCountry

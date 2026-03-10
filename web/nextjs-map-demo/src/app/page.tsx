@@ -15,27 +15,27 @@ export default function Home() {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Features</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-semibold text-blue-900 mb-2">🗺️ Multiple Map Styles</h3>
+              <h3 className="font-semibold text-blue-900 mb-2">Multiple Map Styles</h3>
               <p className="text-sm text-blue-700">Standard, Monochrome, Hybrid, and Satellite views</p>
             </div>
             <div className="p-4 bg-green-50 rounded-lg">
-              <h3 className="font-semibold text-green-900 mb-2">🎨 Color Schemes</h3>
+              <h3 className="font-semibold text-green-900 mb-2">Color Schemes</h3>
               <p className="text-sm text-green-700">Light and Dark themes for better visibility</p>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg">
-              <h3 className="font-semibold text-purple-900 mb-2">🌍 Political Views</h3>
+              <h3 className="font-semibold text-purple-900 mb-2">Political Views</h3>
               <p className="text-sm text-purple-700">Country-specific boundary representations</p>
             </div>
             <div className="p-4 bg-yellow-50 rounded-lg">
-              <h3 className="font-semibold text-yellow-900 mb-2">🔍 Smart Geocoding</h3>
+              <h3 className="font-semibold text-yellow-900 mb-2">Smart Geocoding</h3>
               <p className="text-sm text-yellow-700">Real-time search with autocomplete</p>
             </div>
             <div className="p-4 bg-red-50 rounded-lg">
-              <h3 className="font-semibold text-red-900 mb-2">🌐 Multi-language</h3>
+              <h3 className="font-semibold text-red-900 mb-2">Multi-language</h3>
               <p className="text-sm text-red-700">12 languages including English, Spanish, Japanese</p>
             </div>
             <div className="p-4 bg-indigo-50 rounded-lg">
-              <h3 className="font-semibold text-indigo-900 mb-2">📍 Country Filters</h3>
+              <h3 className="font-semibold text-indigo-900 mb-2">Country Filters</h3>
               <p className="text-sm text-indigo-700">Restrict search results to specific countries</p>
             </div>
           </div>

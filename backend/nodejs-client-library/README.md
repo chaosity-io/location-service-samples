@@ -32,6 +32,7 @@
    LOCATION_API_URL=https://api.yourdomain.com
    LOCATION_CLIENT_ID=your_client_id
    LOCATION_CLIENT_SECRET=your_client_secret
+   LOCATION_ALLOWED_DOMAIN=example.com
    PORT=3000
    ```
 
@@ -48,7 +49,7 @@ Search for places by text query with optional position bias.
 ```bash
 curl -X POST http://localhost:3000/api/search \
   -H "Content-Type: application/json" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -d '{
     "query": "Space Needle",
     "biasPosition": [150.6916303670001, -33.77936728914894],
@@ -67,7 +68,7 @@ Convert coordinates to address.
 ```bash
 curl -X POST http://localhost:3000/api/reverse-geocode \
   -H "Content-Type: application/json" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -d '{
     "position": [150.6916303670001, -33.77936728914894]
   }'
@@ -82,7 +83,7 @@ Get autocomplete suggestions for partial queries.
 ```bash
 curl -X POST http://localhost:3000/api/suggest \
   -H "Content-Type: application/json" \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: example.com" \
   -d '{
     "query": "IFly",
     "biasPosition": [150.6916303670001, -33.77936728914894],
@@ -99,7 +100,7 @@ curl -X POST http://localhost:3000/api/suggest \
 
 ### Zero-Config Setup
 ```typescript
-import { LocationServiceConnector } from '@chaosity/location-client'
+import { LocationServiceConnector } from '@chaosity/location-client/server'
 
 // Auto-detects from environment variables:
 // LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET
@@ -108,6 +109,8 @@ const connector = new LocationServiceConnector()
 
 ### Send Commands
 ```typescript
+import { SearchTextCommand } from '@chaosity/location-client'
+
 const result = await connector.send(
   new SearchTextCommand({ QueryText: 'Space Needle' })
 )
@@ -124,6 +127,6 @@ const result = await connector.send(
 
 ## Learn More
 
-- [Documentation](https://docs.chaosity.io)
+- [Documentation](https://docs.chaosity.cloud)
 - [Client Library](https://www.npmjs.com/package/@chaosity/location-client)
-- [Authentication Guide](https://docs.chaosity.io/docs/authentication)
+- [Authentication Guide](https://docs.chaosity.cloud/docs/authentication)

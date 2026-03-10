@@ -1,139 +1,83 @@
-# Next.js Map Demo - Location Service
+# Next.js Map Demo
 
-Interactive map demo with geocoding search powered by AWS Location Service.
+Interactive map with geocoding search, multiple styles, and advanced filters powered by Location Service.
+
+## Quick Start
+
+```bash
+npm install
+cp .env.example .env  # Add your credentials
+npm run dev           # http://localhost:3001
+```
 
 ## Features
 
-- 🗺️ Interactive map with MapLibre GL
-- 🔍 Geocoding search with autocomplete
-- 📍 Geolocation support
-- 🧭 Navigation controls and scale
-- ⚡ Built with Next.js 15 App Router
-- 🎨 Styled with Tailwind CSS
-
-## Prerequisites
-
-- Node.js 18+ 
-- Location Service API credentials
-
-## Setup
-
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` and add your Location Service credentials:
-   ```
-   LOCATION_API_URL=https://your-api-url.com
-   LOCATION_CLIENT_ID=your_client_id
-   LOCATION_CLIENT_SECRET=your_client_secret
-   ```
-
-3. **Run development server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open browser:**
-   ```
-   http://localhost:3002
-   ```
-
-## Project Structure
-
-```
-nextjs-map-demo/
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx          # Root layout with LocationProvider
-│   │   └── page.tsx            # Home page with map
-│   ├── components/
-│   │   ├── LocationProvider.tsx # Client provider wrapper
-│   │   └── MapDemo.tsx         # Map component with geocoder
-│   ├── lib/
-│   │   └── actions/
-│   │       └── location.ts     # Server action for config
-│   └── styles/
-│       └── globals.css         # Global styles
-├── package.json
-└── README.md
-```
+- **Multiple Map Styles** - Standard, Monochrome, Hybrid, Satellite
+- **Color Schemes** - Light and Dark themes
+- **Political Views** - Country-specific boundary representations
+- **Smart Geocoding** - Real-time search with autocomplete via MapLibre Geocoder
+- **Multi-language** - 12 languages including English, Spanish, Japanese, Chinese
+- **Country Filters** - Restrict search results to specific countries
+- **Globe View** - 3D globe projection with terrain hillshade
 
 ## How It Works
 
-1. **Server-side Authentication:**
-   - `getLocationConfig()` Server Action fetches OAuth2 token
-   - Token is passed to client via `LocationClientProvider`
+1. Server Action fetches OAuth2 token via `getClientConfig()`
+2. `LocationClientProvider` manages token lifecycle (auto-refresh before expiry)
+3. `MapDemo` initializes MapLibre GL map with `createTransformRequest` for authenticated tile requests
+4. `GeoPlaces` adapter connects Location Service to MapLibre Geocoder for search
 
-2. **Client-side Map:**
-   - `MapDemo` component initializes MapLibre GL map
-   - `GeoPlaces` adapter connects Location Service to MapLibre Geocoder
-   - Search box provides autocomplete geocoding
+## API Usage
 
-3. **Token Management:**
-   - Provider automatically refreshes tokens before expiry
-   - No manual token handling needed in components
+### Map Tiles with Authentication
+```typescript
+import { createTransformRequest } from '@chaosity/location-client'
 
-## Usage
-
-### Basic Search
-
-Type a location name in the search box to find places. Click a result to fly to that location.
-
-### Geolocation
-
-Click the geolocation button (crosshair icon) to center the map on your current location.
-
-### Navigation
-
-- **Zoom:** Use +/- buttons or scroll wheel
-- **Pan:** Click and drag
-- **Rotate:** Right-click and drag (or Ctrl+drag)
-- **Tilt:** Ctrl+drag up/down
-
-## Customization
-
-### Change Map Style
-
-Edit `MapDemo.tsx`:
-```tsx
-const styleUrl = `${config.apiUrl}/maps/Satellite/descriptor?${params.toString()}`
-```
-
-Available styles: `Standard`, `Monochrome`, `Hybrid`, `Satellite`
-
-### Adjust Initial View
-
-```tsx
-const mapInstance = new maplibregl.Map({
-  center: [-122.4, 37.8], // [longitude, latitude]
-  zoom: 10,
+const map = new maplibregl.Map({
+  style: `${apiUrl}/maps/Standard/descriptor?color-scheme=Light`,
+  transformRequest: createTransformRequest(apiUrl, getToken),
 })
 ```
 
-### Customize Geocoder
+### Geocoder Integration
+```typescript
+import { GeoPlaces } from '@chaosity/location-client'
 
-```tsx
+const geoPlaces = new GeoPlaces(client, mapInstance)
 const geocoder = new MaplibreGeocoder(geoPlaces, {
-  placeholder: 'Search for places',
+  maplibregl,
+  showResultsWhileTyping: true,
   minLength: 3,
-  limit: 5,
-  // ... more options
 })
+mapInstance.addControl(geocoder, 'top-left')
+```
+
+### Dynamic Style Changes
+```typescript
+const params = new URLSearchParams({
+  'color-scheme': 'Dark',
+  'political-view': 'IND',
+})
+const styleUrl = `${apiUrl}/maps/Monochrome/descriptor?${params}`
+```
+
+## Architecture
+
+```
+src/
+├── app/
+│   ├── layout.tsx              # LocationProvider wrapper
+│   └── page.tsx                # Main page with MapDemo
+├── components/
+│   ├── LocationProvider.tsx     # Client provider wrapper
+│   └── MapDemo.tsx             # Map + controls + geocoder
+└── lib/actions/
+    └── location.ts             # Server action for config
 ```
 
 ## Learn More
 
-- [Location Service Documentation](https://github.com/chaosity-io/location-service-client)
+- [Documentation](https://docs.chaosity.cloud)
+- [Client Libraries](https://docs.chaosity.cloud/docs/client-libraries)
+- [Authentication Guide](https://docs.chaosity.cloud/docs/authentication)
 - [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/)
-- [Next.js Documentation](https://nextjs.org/docs)
-
-## License
-
-MIT

@@ -1,8 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import { getClientConfig } from '@chaosity/location-client'
-import { decodeJwt } from 'jose'
+import { getClientConfig } from '@chaosity/location-client/server'
 
 dotenv.config()
 
@@ -15,24 +14,23 @@ if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET) {
   throw new Error('Missing required environment variables')
 }
 
-// Setup config once at startup
-const config = await getClientConfig({
+const credentials = {
   apiUrl: LOCATION_API_URL,
   clientId: LOCATION_CLIENT_ID,
   clientSecret: LOCATION_CLIENT_SECRET
-})
+}
 
-console.log('✓ Token server ready')
+console.log('Token server ready')
 
 // Token endpoint for SPA
 app.get('/api/token', async (req, res) => {
   try {
-    const { token } = await config.getToken()
-    const decoded = decodeJwt(token!)
-    
+    // getClientConfig handles token caching and refresh internally
+    const config = await getClientConfig(credentials)
+
     res.json({
-      access_token: token,
-      expires_at: decoded.exp ? decoded.exp * 1000 : null,
+      access_token: config.token,
+      expires_at: config.expiresAt ?? null,
       api_url: config.apiUrl
     })
   } catch (error: any) {
