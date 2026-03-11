@@ -1,24 +1,25 @@
 'use client'
 
 import { GeocodeCommand, GeocodeCommandInput, GeocodeCommandOutput } from '@chaosity/location-client'
-import { GeoPlaces, createTransformRequest } from '@chaosity/location-client'
-import { useLocationClient } from '@chaosity/location-client-react'
+import { GeoPlaces, createTransformRequest, fetchMapStyle } from '@chaosity/location-client'
+import { useLocationClient, useMapLanguage } from '@chaosity/location-client-react'
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
+
 export default function MapDemo() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const geocoderRef = useRef<MaplibreGeocoder | null>(null)
-  const colorSchemeSelectRef = useRef<HTMLSelectElement>(null)
-  const politicalViewSelectRef = useRef<HTMLSelectElement>(null)
+  const terrainControlRef = useRef<maplibregl.TerrainControl | null>(null)
   const prevFilterCountryRef = useRef<string>('')
   const prevPoliticalViewRef = useRef<string>('')
-  const mapState = useRef<{ center: [number, number]; zoom: number }>({ center: [-122.4, 37.8], zoom: 10 })
-  const { config, client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
+  const { client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
+  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mapStyle, setMapStyle] = useState('Standard')
@@ -26,137 +27,100 @@ export default function MapDemo() {
   const [politicalView, setPoliticalView] = useState('')
   const [filterCountry, setFilterCountry] = useState<string>('')
   const [language, setLanguage] = useState<string>('en')
-  const currentToken = getToken()
+  const languageRef = useRef(language)
+  languageRef.current = language
 
-  const recurseExpression = useCallback((exp: any, prevPropertyRegex: RegExp, nextProperty: string): any => {
-    if (!Array.isArray(exp)) return exp
-    if (exp[0] !== 'coalesce') return exp.map((v: any) => recurseExpression(v, prevPropertyRegex, nextProperty))
+  // Client-side language switching — zero API calls
+  useMapLanguage(mapInstance, language)
 
-    const first = exp[1]
-    const second = exp[2]
-
-    let isMatch = Array.isArray(first) && first[0] === 'get' && !!first[1].match(prevPropertyRegex)?.[0]
-    isMatch = isMatch && Array.isArray(second) && second[0] === 'get'
-    isMatch = isMatch && !exp?.[4]
-
-    if (!isMatch) return exp.map((v: any) => recurseExpression(v, prevPropertyRegex, nextProperty))
-
-    return ['coalesce', ['get', nextProperty], ['get', 'name:en'], ['get', 'name']]
-  }, [])
-
-  const updateLayer = useCallback((layer: any, prevPropertyRegex: RegExp, nextProperty: string) => {
-    return {
-      ...layer,
-      layout: {
-        ...layer.layout,
-        'text-field': recurseExpression(layer.layout['text-field'], prevPropertyRegex, nextProperty)
-      }
-    }
-  }, [recurseExpression])
-
-  const setPreferredLanguage = useCallback((style: any, language: string) => {
-    const nextStyle = { ...style }
-    nextStyle.layers = nextStyle.layers.map((l: any) => {
-      if (l.type !== 'symbol' || !l?.layout?.['text-field']) return l
-      return updateLayer(l, /^name:([A-Za-z\-\_]+)$/g, `name:${language}`)
-    })
-    return nextStyle
-  }, [updateLayer])
-
-  const getStyleWithPreferredLanguage = useCallback(async (styleUrl: string, language: string) => {
-    const res = await fetch(styleUrl, {
-      headers: {
-        'Authorization': `Bearer ${config?.token}`,
-        'Accept': 'application/json'
-      }
-    })
-    const style = await res.json()
-    return setPreferredLanguage(style, language)
-  }, [config, setPreferredLanguage])
+  const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
 
   const flyToCountryCenter = useCallback(async (countryCode: string) => {
-    if (clientLoading || !config || !client) return
+    if (clientLoading || !client) return
+    if (clientError) {
+      setError(clientError)
+      return
+    }
+
+    const commandInput: GeocodeCommandInput = {
+      QueryComponents: { Country: countryCode }
+    }
+    const response: GeocodeCommandOutput = await client.send(new GeocodeCommand(commandInput))
+
+    if (response.ResultItems && response.ResultItems.length > 0) {
+      const countryGeocode = response.ResultItems.find(item => item.PlaceType?.includes('Country'))
+      if (countryGeocode) {
+        map.current?.flyTo({
+          center: countryGeocode.Position as [number, number],
+          speed: 1.2,
+          curve: 1.4,
+        })
+        map.current?.fitBounds(countryGeocode.MapView as [number, number, number, number], { padding: 20 })
+      }
+    }
+  }, [clientLoading, client, clientError])
+
+  // Sync TerrainControl after each style load
+  const syncTerrainControl = useCallback((mapInst: maplibregl.Map) => {
+    if (terrainControlRef.current) {
+      try { mapInst.removeControl(terrainControlRef.current) } catch { /* noop */ }
+      terrainControlRef.current = null
+    }
+    if (mapInst.getSource('amazon')) {
+      const tc = new maplibregl.TerrainControl({ source: 'amazon' })
+      mapInst.addControl(tc, 'top-right')
+      terrainControlRef.current = tc
+    }
+  }, [])
+
+  // Initialize map once
+  useEffect(() => {
+    if (!mapContainer.current || map.current || clientLoading || !client) return
     if (clientError) {
       setError(clientError)
       setLoading(false)
       return
     }
 
-    if (geocoderRef.current && countryCode) {
-      const commandInput: GeocodeCommandInput = {
-        QueryComponents: { Country: countryCode }
-      }
-      const command = new GeocodeCommand(commandInput)
-      const response: GeocodeCommandOutput = await client.send(command)
+    let cancelled = false
 
-      if (response.ResultItems && response.ResultItems.length > 0) {
-        const countryGeocode = response.ResultItems.find(item => item.PlaceType?.includes('Country'))
-        if (countryGeocode) {
-          map.current?.flyTo({
-            center: countryGeocode.Position as [number, number],
-            speed: 1.2,
-            curve: 1.4,
-          })
-          map.current?.fitBounds(countryGeocode.MapView as [number, number, number, number], { padding: 20 })
-        }
-      }
-    }
-  }, [clientLoading, config, client, clientError])
-
-  useEffect(() => {
-    if (!mapContainer.current) return
-
-    async function initMap() {
-      if (clientLoading || !config || !client || !getToken) return
-      if (clientError) {
-        setError(clientError)
-        setLoading(false)
-        return
-      }
-
+    ;(async () => {
       try {
-        // Save current map state before removing
-        if (map.current) {
-          const center = map.current.getCenter()
-          mapState.current = {
-            center: [center.lng, center.lat],
-            zoom: map.current.getZoom()
-          }
-          map.current.remove()
-          map.current = null
-        }
-
-        const params = new URLSearchParams({
-          'color-scheme': colorScheme,
-          'terrain': 'Hillshade',
+        const style = await fetchMapStyle(API_URL, mapStyle, getToken, {
+          colorScheme: colorScheme as 'Light' | 'Dark',
+          ...(!isRasterStyle && { terrain: 'Terrain3D' as const, buildings: 'Buildings3D' as const }),
+          ...(politicalView && { politicalView }),
+          language: languageRef.current,
         })
-        const styleUrl = `${config.apiUrl}/maps/${mapStyle}/descriptor?${params.toString()}`
 
-        const mapInstance = new maplibregl.Map({
+        if (cancelled) return
+
+        const instance = new maplibregl.Map({
           container: mapContainer.current!,
-          style: styleUrl,
-          center: mapState.current.center,
-          zoom: mapState.current.zoom,
+          style,
+          center: [-122.4, 37.8],
+          zoom: 10,
           minZoom: 3,
-          transformRequest: createTransformRequest(config.apiUrl, getToken),
+          maxPitch: 85,
+          transformRequest: createTransformRequest(API_URL, getToken),
         })
 
-        mapInstance.addControl(new maplibregl.NavigationControl({
+        instance.addControl(new maplibregl.NavigationControl({
           showCompass: true,
           showZoom: true,
           visualizePitch: true,
         }), 'top-right')
 
-        mapInstance.addControl(new maplibregl.GeolocateControl({
+        instance.addControl(new maplibregl.GeolocateControl({
           showUserLocation: true,
           trackUserLocation: true,
           positionOptions: { enableHighAccuracy: true }
         }))
 
-        mapInstance.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }))
-        mapInstance.addControl(new maplibregl.GlobeControl())
+        instance.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }))
+        instance.addControl(new maplibregl.GlobeControl())
 
-        const geoPlaces = new GeoPlaces(client, mapInstance)
+        const geoPlaces = new GeoPlaces(client, instance)
         const geocoder = new MaplibreGeocoder(geoPlaces, {
           maplibregl: maplibregl,
           placeholder: 'Search for places',
@@ -170,31 +134,50 @@ export default function MapDemo() {
         })
 
         geocoderRef.current = geocoder
-        mapInstance.addControl(geocoder, 'top-left')
+        instance.addControl(geocoder, 'top-left')
 
-        mapInstance.on('style.load', () => {
-          mapInstance.setProjection({ type: 'globe' })
+        instance.on('style.load', () => {
+          instance.setProjection({ type: 'globe' })
+          syncTerrainControl(instance)
         })
 
+        map.current = instance
+        setMapInstance(instance)
         setLoading(false)
-        map.current = mapInstance
       } catch (err) {
         console.error('Map initialization error:', err)
         setError(err instanceof Error ? err.message : 'Failed to initialize map')
         setLoading(false)
       }
-    }
-
-    initMap()
+    })()
 
     return () => {
+      cancelled = true
       if (map.current) {
         map.current.remove()
         map.current = null
+        setMapInstance(null)
       }
     }
-  }, [clientLoading, config?.apiUrl, client, clientError, getToken, colorScheme, mapStyle, currentToken])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientLoading, client, clientError])
 
+  // Style update effect — uses languageRef to avoid triggering on language-only changes
+  useEffect(() => {
+    const currentMap = map.current
+    if (!currentMap || loading) return
+
+    fetchMapStyle(API_URL, mapStyle, getToken, {
+      ...(!isRasterStyle && { colorScheme: colorScheme as 'Light' | 'Dark' }),
+      ...(!isRasterStyle && { terrain: 'Terrain3D' as const, buildings: 'Buildings3D' as const }),
+      ...(politicalView && { politicalView }),
+      language: languageRef.current,
+    })
+      .then(style => currentMap.setStyle(style))
+      .catch(err => console.error('[style update]', err))
+  }, [mapStyle, colorScheme, politicalView, loading, getToken, isRasterStyle])
+
+  // Country filter and language for geocoder
   useEffect(() => {
     const filterCountryChanged = prevFilterCountryRef.current !== filterCountry
     const politicalViewChanged = prevPoliticalViewRef.current !== politicalView
@@ -216,38 +199,13 @@ export default function MapDemo() {
     }
   }, [filterCountry, politicalView, language, flyToCountryCenter])
 
+  // Reset controls for raster styles
   useEffect(() => {
-    const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
-
-    if (colorSchemeSelectRef.current) {
-      colorSchemeSelectRef.current.disabled = isRasterStyle || loading
-      if (isRasterStyle) setColorScheme('Light')
-    }
-
-    if (politicalViewSelectRef.current) {
-      politicalViewSelectRef.current.disabled = mapStyle === 'Satellite' || loading
+    if (isRasterStyle) {
+      setColorScheme('Light')
       if (mapStyle === 'Satellite') setPoliticalView('')
     }
-
-    if (map.current && config) {
-      const params = new URLSearchParams({
-        'color-scheme': colorScheme,
-        ...(politicalView && { 'political-view': politicalView })
-      })
-
-      const styleUrl = `${config.apiUrl}/maps/${mapStyle}/descriptor?${params.toString()}`
-      const setStyle = async (styleUrl: string, language: string) => {
-        try {
-          const style = await getStyleWithPreferredLanguage(styleUrl, language)
-          map.current?.setStyle(style)
-        } catch (error) {
-          console.error('Failed to set map style:', error)
-        }
-      }
-
-      setStyle(styleUrl, language)
-    }
-  }, [mapStyle, colorScheme, politicalView, config, language, getStyleWithPreferredLanguage, loading])
+  }, [mapStyle, isRasterStyle])
 
   if (error) {
     return (
@@ -283,10 +241,10 @@ export default function MapDemo() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Color Scheme</label>
             <select
-              ref={colorSchemeSelectRef}
               value={colorScheme}
               onChange={(e) => setColorScheme(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              disabled={isRasterStyle || loading}
             >
               <option value="Light">Light</option>
               <option value="Dark">Dark</option>
@@ -296,10 +254,10 @@ export default function MapDemo() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Political View</label>
             <select
-              ref={politicalViewSelectRef}
               value={politicalView}
               onChange={(e) => setPoliticalView(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              disabled={mapStyle === 'Satellite' || loading}
             >
               <option value="">Default</option>
               <option value="IND">India</option>
