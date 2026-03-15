@@ -1,0 +1,29 @@
+{
+  "name": "@chaosity/nextjs-address-form",
+  "version": "1.0.0",
+  "description": "Address form with autocomplete using @chaosity/address-form",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@chaosity/address-form": "file:../../../address-form-sdk-js",
+    "@chaosity/location-client": "file:../../../location-service-client",
+    "@chaosity/location-client-react": "file:../../../location-service-client-react",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^20.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "^15.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.3.3"
+  }
+}
