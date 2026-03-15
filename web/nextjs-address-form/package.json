@@ -9,9 +9,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "@chaosity/address-form": "file:../../../address-form-sdk-js",
-    "@chaosity/location-client": "file:../../../location-service-client",
-    "@chaosity/location-client-react": "file:../../../location-service-client-react",
+    "@chaosity/address-form": "^0.2.0",
+    "@chaosity/location-client": "^0.1.11",
+    "@chaosity/location-client-react": "^0.1.10",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
