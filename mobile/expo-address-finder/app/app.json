@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Address Finder",
+    "slug": "expo-address-finder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "cloud.chaosity.expo-address-finder",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Used to reverse geocode your current location into an address."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "package": "cloud.chaosity.expoaddressfinder",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": [
+      "expo-location",
+      "@maplibre/maplibre-react-native"
+    ]
+  }
+}
