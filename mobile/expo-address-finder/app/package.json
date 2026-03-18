@@ -3,26 +3,25 @@
   "version": "1.0.0",
   "description": "React Native address finder with autocomplete and map — Expo sample",
   "private": true,
-  "main": "expo-router/entry",
+  "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },
   "dependencies": {
-    "@chaosity/location-client": "^0.1.9",
-    "@chaosity/location-client-react": "^0.1.8",
-    "@maplibre/maplibre-react-native": "^10.0.0",
-    "expo": "~52.0.0",
-    "expo-location": "~18.0.0",
-    "expo-dev-client": "~5.0.0",
-    "react": "18.3.1",
-    "react-native": "0.76.5"
+    "@chaosity/location-client": "^0.1.11",
+    "@chaosity/location-client-react": "^0.1.11",
+    "@maplibre/maplibre-react-native": "^10.4.2",
+    "expo": "~55.0.0",
+    "expo-location": "~55.1.0",
+    "expo-dev-client": "~55.0.0",
+    "react": "19.2.4",
+    "react-native": "0.84.1"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
-    "@types/react": "~18.3.0",
-    "@types/react-native": "~0.76.0",
+    "@types/react": "~19.2.0",
     "typescript": "^5.3.3"
   }
 }

@@ -1,0 +1,20 @@
+node_modules/
+dist/
+
+# Generated native directories — run `npx expo run:android` or `npx expo run:ios` to regenerate
+android/
+ios/
+
+# Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Environment
+.env
+.env.local
