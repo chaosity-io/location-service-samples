@@ -9,8 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@chaosity/location-client": "^0.1.6",
-    "@chaosity/location-client-react": "^0.1.7",
+    "@chaosity/location-client": "^0.1.14",
+    "@chaosity/location-client-react": "^0.1.19",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -23,5 +23,4 @@
     "eslint-config-next": "^15.0.0",
     "typescript": "^5.3.3"
   }
-  
 }

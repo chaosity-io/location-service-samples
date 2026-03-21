@@ -4,6 +4,7 @@ import { useLocationClient } from '@chaosity/location-client-react'
 import {
   SearchTextCommand,
   type SearchTextCommandInput,
+  type SearchTextCommandOutput,
   type SearchTextResultItem,
 } from '@chaosity/location-client'
 import { useState } from 'react'
@@ -42,7 +43,7 @@ export function SearchBox() {
         QueryText: query,
         MaxResults: 5,
       }
-      const result = await client.send(new SearchTextCommand(input))
+      const result: SearchTextCommandOutput = await client.send(new SearchTextCommand(input))
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed')

@@ -9,8 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@chaosity/location-client": "^0.1.10",
-    "@chaosity/location-client-react": "^0.1.9",
+    "@chaosity/location-client": "^0.1.14",
+    "@chaosity/location-client-react": "^0.1.19",
     "maplibre-gl": "^5.0.0",
     "next": "^15.0.0",
     "react": "^19.0.0",

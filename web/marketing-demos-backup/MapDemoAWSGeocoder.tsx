@@ -46,8 +46,8 @@ export default function MapDemoAWSGeocoder() {
     }
   }, [])
 
-  function useDependencyDebugger(dependencies: any[], dependencyNames: string[]) {
-    const previousDeps = useRef<any[]>([])
+  function useDependencyDebugger(dependencies: unknown[], dependencyNames: string[]) {
+    const previousDeps = useRef<unknown[]>([])
 
     useEffect(() => {
       dependencies.forEach((dep, i) => {
@@ -68,25 +68,39 @@ export default function MapDemoAWSGeocoder() {
     ['clientLoading', 'config', 'client', 'clientError', 'colorScheme', 'politicalView', 'mapStyle', 'userLocation']
   )
 
-  const recurseExpression = useCallback((exp: any, prevPropertyRegex: RegExp, nextProperty: string): any => {
+  // MapLibre style expressions are recursive JSON arrays (Mapbox Style Spec)
+  type StyleExpression = unknown[] | string | number | boolean | null
+
+  interface StyleLayer {
+    type: string
+    layout?: { 'text-field'?: StyleExpression; [key: string]: unknown }
+    [key: string]: unknown
+  }
+
+  interface MapStyle {
+    layers: StyleLayer[]
+    [key: string]: unknown
+  }
+
+  const recurseExpression = useCallback((exp: StyleExpression, prevPropertyRegex: RegExp, nextProperty: string): StyleExpression => {
     if (!Array.isArray(exp)) return exp;
-    if (exp[0] !== 'coalesce') return exp.map((v: any) =>
-      recurseExpression(v, prevPropertyRegex, nextProperty)
+    if (exp[0] !== 'coalesce') return exp.map((v) =>
+      recurseExpression(v as StyleExpression, prevPropertyRegex, nextProperty)
     );
 
-    const first = exp[1];
-    const second = exp[2];
+    const first = exp[1] as unknown[];
+    const second = exp[2] as unknown[];
 
     let isMatch =
       Array.isArray(first) &&
       first[0] === 'get' &&
-      !!first[1].match(prevPropertyRegex)?.[0];
+      !!(first[1] as string).match(prevPropertyRegex)?.[0];
 
     isMatch = isMatch && Array.isArray(second) && second[0] === 'get';
     isMatch = isMatch && !exp?.[4];
 
-    if (!isMatch) return exp.map((v: any) =>
-      recurseExpression(v, prevPropertyRegex, nextProperty)
+    if (!isMatch) return exp.map((v) =>
+      recurseExpression(v as StyleExpression, prevPropertyRegex, nextProperty)
     );
 
     return [
@@ -97,13 +111,13 @@ export default function MapDemoAWSGeocoder() {
     ];
   }, []);
 
-  const updateLayer = useCallback((layer: any, prevPropertyRegex: RegExp, nextProperty: string) => {
+  const updateLayer = useCallback((layer: StyleLayer, prevPropertyRegex: RegExp, nextProperty: string): StyleLayer => {
     return {
       ...layer,
       layout: {
         ...layer.layout,
         'text-field': recurseExpression(
-          layer.layout['text-field'],
+          layer.layout?.['text-field'] ?? null,
           prevPropertyRegex,
           nextProperty
         )
@@ -111,14 +125,14 @@ export default function MapDemoAWSGeocoder() {
     };
   }, [recurseExpression]);
 
-  const setPreferredLanguage = useCallback((style: any, language: string) => {
+  const setPreferredLanguage = useCallback((style: MapStyle, language: string): MapStyle => {
     const nextStyle = { ...style };
     console.log('[Language] Setting language to:', language);
     let updatedCount = 0;
-    nextStyle.layers = nextStyle.layers.map((l: any) => {
+    nextStyle.layers = nextStyle.layers.map((l) => {
       if (l.type !== 'symbol' || !l?.layout?.['text-field']) return l;
       const updated = updateLayer(l, /^name:([A-Za-z\-\_]+)$/g, `name:${language}`);
-      if (JSON.stringify(l.layout['text-field']) !== JSON.stringify(updated.layout['text-field'])) {
+      if (JSON.stringify(l.layout?.['text-field']) !== JSON.stringify(updated.layout?.['text-field'])) {
         updatedCount++;
       }
       return updated;

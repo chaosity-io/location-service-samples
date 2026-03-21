@@ -33,10 +33,11 @@ app.post('/api/search', async (req, res) => {
     )
 
     res.json(result)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Search error:', error)
-    res.status(error.statusCode || 500).json({
-      error: error.message || 'Search failed'
+    const err = error as { statusCode?: number; message?: string }
+    res.status(err.statusCode || 500).json({
+      error: err.message || 'Search failed'
     })
   }
 })
@@ -58,10 +59,11 @@ app.post('/api/reverse-geocode', async (req, res) => {
     )
 
     res.json(result)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Reverse geocode error:', error)
-    res.status(error.statusCode || 500).json({
-      error: error.message || 'Reverse geocode failed'
+    const err = error as { statusCode?: number; message?: string }
+    res.status(err.statusCode || 500).json({
+      error: err.message || 'Reverse geocode failed'
     })
   }
 })
@@ -85,10 +87,11 @@ app.post('/api/suggest', async (req, res) => {
     )
 
     res.json(result)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Suggest error:', error)
-    res.status(error.statusCode || 500).json({
-      error: error.message || 'Suggest failed'
+    const err = error as { statusCode?: number; message?: string }
+    res.status(err.statusCode || 500).json({
+      error: err.message || 'Suggest failed'
     })
   }
 })

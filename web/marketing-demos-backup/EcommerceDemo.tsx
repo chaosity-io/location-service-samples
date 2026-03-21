@@ -46,8 +46,16 @@ export default function EcommerceDemo() {
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
   const [postalCode, setPostalCode] = useState('')
-  const [suggestions, setSuggestions] = useState<any[]>([])
-  const [validation, setValidation] = useState<any>(null)
+  interface SuggestionItem {
+    Address?: { Label?: string; Municipality?: string; PostalCode?: string }
+  }
+  interface ValidationResult {
+    isValid: boolean
+    formatted_address?: string
+    details?: { PostalCode?: string }
+  }
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([])
+  const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [isValidating, setIsValidating] = useState(false)
   const [deliveryOption, setDeliveryOption] = useState<'standard' | 'express' | 'pickup'>('standard')
   const [cartItems] = useState([
@@ -94,8 +102,8 @@ export default function EcommerceDemo() {
     setAddress(value)
     if (value.length > 3 && ecommerceClient) {
       const response = await ecommerceClient.getSuggestions(value)
-      const items = (response as any).ResultItems || []
-      setSuggestions(items.filter((item: any) => item.Address))
+      const items = ((response as { ResultItems?: SuggestionItem[] }).ResultItems) || []
+      setSuggestions(items.filter((item) => item.Address))
     } else {
       setSuggestions([])
     }
@@ -107,8 +115,8 @@ export default function EcommerceDemo() {
     setIsValidating(true)
     try {
       const response = await ecommerceClient.getSuggestions(address)
-      const items = (response as any).ResultItems || []
-      const firstAddress = items.find((item: any) => item.Address)?.Address
+      const items = ((response as { ResultItems?: SuggestionItem[] }).ResultItems) || []
+      const firstAddress = items.find((item) => item.Address)?.Address
 
       if (firstAddress) {
         setValidation({
@@ -125,7 +133,7 @@ export default function EcommerceDemo() {
     setSuggestions([])
   }
 
-  const selectSuggestion = (item: any) => {
+  const selectSuggestion = (item: SuggestionItem) => {
     const address = item.Address
     setAddress(address?.Label || '')
     setCity(address?.Municipality || '')
@@ -236,7 +244,7 @@ export default function EcommerceDemo() {
                     name="delivery"
                     value={option.value}
                     checked={deliveryOption === option.value}
-                    onChange={(e) => setDeliveryOption(e.target.value as any)}
+                    onChange={(e) => setDeliveryOption(e.target.value as 'standard' | 'express' | 'pickup')}
                     className="w-4 h-4 text-blue-600"
                   />
                   <div className="flex-1">

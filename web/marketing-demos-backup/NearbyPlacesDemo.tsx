@@ -5,7 +5,7 @@ import { MapPinIcon, MagnifyingGlassIcon, CheckCircleIcon } from '@heroicons/rea
 import { useLocationClient } from '@chaosity/location-client-react'
 import { RideShareClient } from '@/lib/adapters/RideShareClient'
 import { EcommerceClient } from '@/lib/adapters/EcommerceClient'
-import { GeoPlacesClient } from '@chaosity/location-client'
+import { GeoPlacesClient, type GeocodeCommandOutput } from '@chaosity/location-client'
 import { GeocodeCommand } from '@aws-sdk/client-geo-places'
 
 const COUNTRIES = [
@@ -84,7 +84,7 @@ export default function NearbyPlacesDemo() {
     }
   }
 
-  const handleSelectAddress = async (item: any) => {
+  const handleSelectAddress = async (item: { Address: { Label: string } }) => {
     if (!client || !locationClient) return
     
     setLoading(true)
@@ -93,7 +93,7 @@ export default function NearbyPlacesDemo() {
         QueryText: item.Address.Label,
         Filter: { IncludeCountries: [selectedCountry.code] },
       })
-      const response = await (client as GeoPlacesClient).send(command) as any
+      const response: GeocodeCommandOutput = await (client as GeoPlacesClient).send(command)
       const coords = response.ResultItems?.[0]?.Position
       if (coords) {
         setCurrentCoords([coords[0], coords[1]])

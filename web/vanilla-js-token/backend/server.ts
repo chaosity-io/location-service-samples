@@ -33,7 +33,7 @@ app.get('/api/token', async (req, res) => {
       expires_at: config.expiresAt ?? null,
       api_url: config.apiUrl
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Token generation failed:', error)
     res.status(500).json({ error: 'Token generation failed' })
   }

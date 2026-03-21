@@ -10,8 +10,8 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
-    "@chaosity/location-client": "^0.1.11",
-    "@chaosity/location-client-react": "^0.1.11",
+    "@chaosity/location-client": "^0.1.14",
+    "@chaosity/location-client-react": "^0.1.19",
     "@maplibre/maplibre-react-native": "^10.4.2",
     "expo": "~55.0.0",
     "expo-location": "~55.1.0",

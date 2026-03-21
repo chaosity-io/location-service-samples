@@ -7,7 +7,7 @@ import {
   createTransformRequest,
   fetchMapStyle,
 } from '@chaosity/location-client'
-import type { GeocodeResultItem } from '@chaosity/location-client'
+import type { GeocodeCommandOutput, GeocodeResultItem, ReverseGeocodeCommandOutput } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -103,7 +103,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
             QueryPosition: [lng, lat],
             Language: 'en',
           })
-          const response = await client.send(cmd)
+          const response: ReverseGeocodeCommandOutput = await client.send(cmd)
           const countryCode3 = response.ResultItems?.[0]?.Address?.Country?.Code3
           const countryCode2 = response.ResultItems?.[0]?.Address?.Country?.Code2
           if (countryCode3 || countryCode2) {
@@ -217,7 +217,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
             Language: 'en',
             ...(biasPosition && { BiasPosition: biasPosition }),
           })
-          const result = await client.send(cmd)
+          const result: GeocodeCommandOutput = await client.send(cmd)
           if (result.ResultItems && result.ResultItems.length > 0) {
             setSuggestions(result.ResultItems)
             setShowSuggestions(true)
@@ -305,7 +305,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
           Filter: { IncludeCountries: [address.country] },
         }),
       })
-      const result = await client.send(cmd)
+      const result: GeocodeCommandOutput = await client.send(cmd)
       const item = result.ResultItems?.[0]
 
       if (item) {

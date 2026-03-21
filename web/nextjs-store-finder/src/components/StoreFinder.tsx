@@ -7,7 +7,7 @@ import {
   createTransformRequest,
   fetchMapStyle,
 } from '@chaosity/location-client'
-import type { AutocompleteResultItem } from '@chaosity/location-client'
+import type { AutocompleteCommandOutput, AutocompleteResultItem, GetPlaceCommandOutput, ReverseGeocodeCommandOutput } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -100,7 +100,7 @@ export default function StoreFinder() {
 
     const detectRegion = async (lng: number, lat: number) => {
       try {
-        const response = await client.send(
+        const response: ReverseGeocodeCommandOutput = await client.send(
           new ReverseGeocodeCommand({ QueryPosition: [lng, lat], MaxResults: 1 })
         )
         const countryCode =
@@ -419,7 +419,7 @@ export default function StoreFinder() {
             ...(biasPosition && { BiasPosition: biasPosition }),
           })
 
-          const response = await client.send(command)
+          const response: AutocompleteCommandOutput = await client.send(command)
           setSuggestions(response.ResultItems || [])
           setShowSuggestions(true)
         } catch (err) {
@@ -441,7 +441,7 @@ export default function StoreFinder() {
 
       try {
         const command = new GetPlaceCommand({ PlaceId: suggestion.PlaceId })
-        const response = await client.send(command)
+        const response: GetPlaceCommandOutput = await client.send(command)
 
         if (response.Position) {
           const pos: [number, number] = response.Position as [number, number]
@@ -531,7 +531,7 @@ export default function StoreFinder() {
 
         // Detect region from current location
         try {
-          const response = await client.send(
+          const response: ReverseGeocodeCommandOutput = await client.send(
             new ReverseGeocodeCommand({ QueryPosition: pos, MaxResults: 1 })
           )
           const countryCode =

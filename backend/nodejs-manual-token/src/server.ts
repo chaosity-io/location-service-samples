@@ -23,7 +23,7 @@ const tokenManager = new TokenManager(
 console.log('✓ Token manager initialized')
 
 // Helper function for API requests
-async function makeRequest(endpoint: string, body: any) {
+async function makeRequest(endpoint: string, body: Record<string, unknown>) {
   const token = await tokenManager.getToken()
 
   const response = await fetch(`${LOCATION_API_URL}${endpoint}`, {
@@ -67,9 +67,9 @@ app.post('/api/search', async (req, res) => {
     })
 
     res.json(result)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Search error:', error)
-    res.status(500).json({ error: error.message || 'Search failed' })
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Search failed' })
   }
 })
 
@@ -87,9 +87,9 @@ app.post('/api/reverse-geocode', async (req, res) => {
     })
 
     res.json(result)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Reverse geocode error:', error)
-    res.status(500).json({ error: error.message || 'Reverse geocode failed' })
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Reverse geocode failed' })
   }
 })
 
@@ -109,9 +109,9 @@ app.post('/api/suggest', async (req, res) => {
     })
 
     res.json(result)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Suggest error:', error)
-    res.status(500).json({ error: error.message || 'Suggest failed' })
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Suggest failed' })
   }
 })
 

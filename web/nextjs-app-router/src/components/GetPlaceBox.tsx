@@ -4,6 +4,7 @@ import { useLocationClient } from '@chaosity/location-client-react'
 import {
   GetPlaceCommand,
   type GetPlaceCommandInput,
+  type GetPlaceCommandOutput,
   type GetPlaceResponse,
 } from '@chaosity/location-client'
 import { useState } from 'react'
@@ -42,7 +43,7 @@ export function GetPlaceBox() {
       const input: GetPlaceCommandInput = {
         PlaceId: placeId,
       }
-      const response = await client.send(new GetPlaceCommand(input))
+      const response: GetPlaceCommandOutput = await client.send(new GetPlaceCommand(input))
       setResult(response)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'GetPlace failed')
@@ -90,9 +91,9 @@ export function GetPlaceBox() {
                 Phone: {result.Contacts.Phones[0].Value}
               </span>
             )}
-            {result.OpeningHours?.Display && result.OpeningHours.Display.length > 0 && (
+            {result.OpeningHours?.[0]?.Display && result.OpeningHours[0].Display.length > 0 && (
               <span className="tags">
-                Hours: {result.OpeningHours.Display[0]}
+                Hours: {result.OpeningHours[0].Display[0]}
               </span>
             )}
             {result.TimeZone?.Name && (

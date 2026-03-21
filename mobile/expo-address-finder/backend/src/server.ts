@@ -15,9 +15,10 @@ app.get('/config', async (_req, res) => {
   try {
     const config = await getClientConfig()
     res.json(config)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Config error:', error)
-    res.status(500).json({ error: error.message || 'Failed to get config' })
+    const err = error as { message?: string }
+    res.status(500).json({ error: err.message || 'Failed to get config' })
   }
 })
 

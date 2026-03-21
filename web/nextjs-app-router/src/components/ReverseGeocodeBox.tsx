@@ -4,6 +4,7 @@ import { useLocationClient } from '@chaosity/location-client-react'
 import {
   ReverseGeocodeCommand,
   type ReverseGeocodeCommandInput,
+  type ReverseGeocodeCommandOutput,
   type ReverseGeocodeResultItem,
 } from '@chaosity/location-client'
 import { useState } from 'react'
@@ -42,7 +43,7 @@ export function ReverseGeocodeBox() {
         QueryPosition: [parseFloat(lng), parseFloat(lat)],
         MaxResults: 3,
       }
-      const result = await client.send(new ReverseGeocodeCommand(input))
+      const result: ReverseGeocodeCommandOutput = await client.send(new ReverseGeocodeCommand(input))
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reverse geocode failed')

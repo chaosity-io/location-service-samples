@@ -4,6 +4,7 @@ import { useLocationClient } from '@chaosity/location-client-react'
 import {
   SearchNearbyCommand,
   type SearchNearbyCommandInput,
+  type SearchNearbyCommandOutput,
   type SearchNearbyResultItem,
 } from '@chaosity/location-client'
 import { useState } from 'react'
@@ -44,7 +45,7 @@ export function SearchNearbyBox() {
         QueryPosition: [parseFloat(lng), parseFloat(lat)],
         MaxResults: 5,
       }
-      const result = await client.send(new SearchNearbyCommand(input))
+      const result: SearchNearbyCommandOutput = await client.send(new SearchNearbyCommand(input))
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search nearby failed')

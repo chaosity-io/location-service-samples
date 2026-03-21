@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@chaosity/address-form": "^0.2.0",
-    "@chaosity/location-client": "^0.1.11",
-    "@chaosity/location-client-react": "^0.1.10",
+    "@chaosity/location-client": "^0.1.14",
+    "@chaosity/location-client-react": "^0.1.19",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
