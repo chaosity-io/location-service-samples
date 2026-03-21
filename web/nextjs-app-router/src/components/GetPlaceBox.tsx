@@ -1,12 +1,12 @@
 'use client'
 
-import { useLocationClient } from '@chaosity/location-client-react'
 import {
   GetPlaceCommand,
   type GetPlaceCommandInput,
   type GetPlaceCommandOutput,
   type GetPlaceResponse,
 } from '@chaosity/location-client'
+import { useLocationClient } from '@chaosity/location-client-react'
 import { useState } from 'react'
 
 /**
@@ -43,7 +43,9 @@ export function GetPlaceBox() {
       const input: GetPlaceCommandInput = {
         PlaceId: placeId,
       }
-      const response: GetPlaceCommandOutput = await client.send(new GetPlaceCommand(input))
+      const response: GetPlaceCommandOutput = await client.send(
+        new GetPlaceCommand(input),
+      )
       setResult(response)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'GetPlace failed')
@@ -75,15 +77,20 @@ export function GetPlaceBox() {
         <ul className="results">
           <li>
             <strong>{result.Title}</strong>
-            {result.Address?.Label && <span className="label">{result.Address.Label}</span>}
+            {result.Address?.Label && (
+              <span className="label">{result.Address.Label}</span>
+            )}
             {result.Position && (
               <span className="coords">
-                {result.Position[1]?.toFixed(6)}, {result.Position[0]?.toFixed(6)}
+                {result.Position[1]?.toFixed(6)},{' '}
+                {result.Position[0]?.toFixed(6)}
               </span>
             )}
             {result.Categories && result.Categories.length > 0 && (
               <span className="tags">
-                {result.Categories.map(c => c.Name).filter(Boolean).join(', ')}
+                {result.Categories.map((c) => c.Name)
+                  .filter(Boolean)
+                  .join(', ')}
               </span>
             )}
             {result.Contacts?.Phones && result.Contacts.Phones.length > 0 && (
@@ -91,11 +98,12 @@ export function GetPlaceBox() {
                 Phone: {result.Contacts.Phones[0].Value}
               </span>
             )}
-            {result.OpeningHours?.[0]?.Display && result.OpeningHours[0].Display.length > 0 && (
-              <span className="tags">
-                Hours: {result.OpeningHours[0].Display[0]}
-              </span>
-            )}
+            {result.OpeningHours?.[0]?.Display &&
+              result.OpeningHours[0].Display.length > 0 && (
+                <span className="tags">
+                  Hours: {result.OpeningHours[0].Display[0]}
+                </span>
+              )}
             {result.TimeZone?.Name && (
               <span className="tags">Timezone: {result.TimeZone.Name}</span>
             )}

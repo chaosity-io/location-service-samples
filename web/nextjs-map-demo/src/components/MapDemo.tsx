@@ -1,11 +1,11 @@
 'use client'
 
 import {
+  GeoPlaces,
   GeocodeCommand,
+  createTransformRequest,
   type GeocodeCommandInput,
   type GeocodeCommandOutput,
-  GeoPlaces,
-  createTransformRequest,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
@@ -13,6 +13,8 @@ import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
 export default function MapDemo() {
   const mapContainer = useRef<HTMLDivElement>(null)
@@ -22,8 +24,16 @@ export default function MapDemo() {
   const politicalViewSelectRef = useRef<HTMLSelectElement>(null)
   const prevFilterCountryRef = useRef<string>('')
   const prevPoliticalViewRef = useRef<string>('')
-  const mapState = useRef<{ center: [number, number]; zoom: number }>({ center: [-122.4, 37.8], zoom: 10 })
-  const { config, client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
+  const mapState = useRef<{ center: [number, number]; zoom: number }>({
+    center: [-122.4, 37.8],
+    zoom: 10,
+  })
+  const {
+    client,
+    getToken,
+    loading: clientLoading,
+    error: clientError,
+  } = useLocationClient()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mapStyle, setMapStyle] = useState('Standard')
@@ -42,93 +52,147 @@ export default function MapDemo() {
   }
 
   interface MapStyle {
-    version: number
+    version: 8
     sources: Record<string, unknown>
     layers: StyleLayer[]
     [key: string]: unknown
   }
 
-  const recurseExpression = useCallback((exp: StyleExpression, prevPropertyRegex: RegExp, nextProperty: string): StyleExpression => {
-    if (!Array.isArray(exp)) return exp
-    if (exp[0] !== 'coalesce') return exp.map((v) => recurseExpression(v as StyleExpression, prevPropertyRegex, nextProperty))
+  const recurseExpression = useCallback(
+    (
+      exp: StyleExpression,
+      prevPropertyRegex: RegExp,
+      nextProperty: string,
+    ): StyleExpression => {
+      if (!Array.isArray(exp)) return exp
+      if (exp[0] !== 'coalesce')
+        return exp.map((v) =>
+          recurseExpression(
+            v as StyleExpression,
+            prevPropertyRegex,
+            nextProperty,
+          ),
+        )
 
-    const first = exp[1] as unknown[]
-    const second = exp[2] as unknown[]
+      const first = exp[1] as unknown[]
+      const second = exp[2] as unknown[]
 
-    let isMatch = Array.isArray(first) && first[0] === 'get' && !!(first[1] as string).match(prevPropertyRegex)?.[0]
-    isMatch = isMatch && Array.isArray(second) && second[0] === 'get'
-    isMatch = isMatch && !exp?.[4]
+      let isMatch =
+        Array.isArray(first) &&
+        first[0] === 'get' &&
+        !!(first[1] as string).match(prevPropertyRegex)?.[0]
+      isMatch = isMatch && Array.isArray(second) && second[0] === 'get'
+      isMatch = isMatch && !exp?.[4]
 
-    if (!isMatch) return exp.map((v) => recurseExpression(v as StyleExpression, prevPropertyRegex, nextProperty))
+      if (!isMatch)
+        return exp.map((v) =>
+          recurseExpression(
+            v as StyleExpression,
+            prevPropertyRegex,
+            nextProperty,
+          ),
+        )
 
-    return ['coalesce', ['get', nextProperty], ['get', 'name:en'], ['get', 'name']]
-  }, [])
+      return [
+        'coalesce',
+        ['get', nextProperty],
+        ['get', 'name:en'],
+        ['get', 'name'],
+      ]
+    },
+    [],
+  )
 
-  const updateLayer = useCallback((layer: StyleLayer, prevPropertyRegex: RegExp, nextProperty: string): StyleLayer => {
-    return {
-      ...layer,
-      layout: {
-        ...layer.layout,
-        'text-field': recurseExpression(layer.layout?.['text-field'] ?? null, prevPropertyRegex, nextProperty)
+  const updateLayer = useCallback(
+    (
+      layer: StyleLayer,
+      prevPropertyRegex: RegExp,
+      nextProperty: string,
+    ): StyleLayer => {
+      return {
+        ...layer,
+        layout: {
+          ...layer.layout,
+          'text-field': recurseExpression(
+            layer.layout?.['text-field'] ?? null,
+            prevPropertyRegex,
+            nextProperty,
+          ),
+        },
       }
-    }
-  }, [recurseExpression])
+    },
+    [recurseExpression],
+  )
 
-  const setPreferredLanguage = useCallback((style: MapStyle, language: string): MapStyle => {
-    const nextStyle = { ...style }
-    nextStyle.layers = nextStyle.layers.map((l) => {
-      if (l.type !== 'symbol' || !l?.layout?.['text-field']) return l
-      return updateLayer(l, /^name:([A-Za-z\-\_]+)$/g, `name:${language}`)
-    })
-    return nextStyle
-  }, [updateLayer])
+  const setPreferredLanguage = useCallback(
+    (style: MapStyle, language: string): MapStyle => {
+      const nextStyle = { ...style }
+      nextStyle.layers = nextStyle.layers.map((l) => {
+        if (l.type !== 'symbol' || !l?.layout?.['text-field']) return l
+        return updateLayer(l, /^name:([A-Za-z\-\_]+)$/g, `name:${language}`)
+      })
+      return nextStyle
+    },
+    [updateLayer],
+  )
 
-  const getStyleWithPreferredLanguage = useCallback(async (styleUrl: string, language: string) => {
-    const token = getToken()
-    const res = await fetch(styleUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
+  const getStyleWithPreferredLanguage = useCallback(
+    async (styleUrl: string, language: string) => {
+      const token = getToken()
+      const res = await fetch(styleUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      })
+      const style = await res.json()
+      return setPreferredLanguage(style, language)
+    },
+    [getToken, setPreferredLanguage],
+  )
+
+  const flyToCountryCenter = useCallback(
+    async (countryCode: string) => {
+      if (clientLoading || !client) return
+      if (clientError) {
+        setError(clientError)
+        setLoading(false)
+        return
       }
-    })
-    const style = await res.json()
-    return setPreferredLanguage(style, language)
-  }, [getToken, setPreferredLanguage])
 
-  const flyToCountryCenter = useCallback(async (countryCode: string) => {
-    if (clientLoading || !config || !client) return
-    if (clientError) {
-      setError(clientError)
-      setLoading(false)
-      return
-    }
+      if (geocoderRef.current && countryCode) {
+        const commandInput: GeocodeCommandInput = {
+          QueryComponents: { Country: countryCode },
+        }
+        const command = new GeocodeCommand(commandInput)
+        const response: GeocodeCommandOutput = await client.send(command)
 
-    if (geocoderRef.current && countryCode) {
-      const commandInput: GeocodeCommandInput = {
-        QueryComponents: { Country: countryCode }
-      }
-      const command = new GeocodeCommand(commandInput)
-      const response: GeocodeCommandOutput = await client.send(command)
-
-      if (response.ResultItems && response.ResultItems.length > 0) {
-        const countryGeocode = response.ResultItems.find(item => item.PlaceType?.includes('Country'))
-        if (countryGeocode) {
-          map.current?.flyTo({
-            center: countryGeocode.Position as [number, number],
-            speed: 1.2,
-            curve: 1.4,
-          })
-          map.current?.fitBounds(countryGeocode.MapView as [number, number, number, number], { padding: 20 })
+        if (response.ResultItems && response.ResultItems.length > 0) {
+          const countryGeocode = response.ResultItems.find((item) =>
+            item.PlaceType?.includes('Country'),
+          )
+          if (countryGeocode) {
+            map.current?.flyTo({
+              center: countryGeocode.Position as [number, number],
+              speed: 1.2,
+              curve: 1.4,
+            })
+            map.current?.fitBounds(
+              countryGeocode.MapView as [number, number, number, number],
+              { padding: 20 },
+            )
+          }
         }
       }
-    }
-  }, [clientLoading, config, client, clientError])
+    },
+    [clientLoading, client, clientError],
+  )
 
   useEffect(() => {
     if (!mapContainer.current) return
 
     async function initMap() {
-      if (clientLoading || !config || !client || !getToken) return
+      if (clientLoading || !client || !getToken) return
       if (clientError) {
         setError(clientError)
         setLoading(false)
@@ -141,7 +205,7 @@ export default function MapDemo() {
           const center = map.current.getCenter()
           mapState.current = {
             center: [center.lng, center.lat],
-            zoom: map.current.getZoom()
+            zoom: map.current.getZoom(),
           }
           map.current.remove()
           map.current = null
@@ -149,9 +213,9 @@ export default function MapDemo() {
 
         const params = new URLSearchParams({
           'color-scheme': colorScheme,
-          'terrain': 'Hillshade',
+          terrain: 'Hillshade',
         })
-        const styleUrl = `${config.apiUrl}/maps/${mapStyle}/descriptor?${params.toString()}`
+        const styleUrl = `${API_URL}/maps/${mapStyle}/descriptor?${params.toString()}`
 
         const mapInstance = new maplibregl.Map({
           container: mapContainer.current!,
@@ -159,25 +223,36 @@ export default function MapDemo() {
           center: mapState.current.center,
           zoom: mapState.current.zoom,
           minZoom: 3,
-          transformRequest: createTransformRequest(config.apiUrl, getToken),
+          transformRequest: createTransformRequest(
+            API_URL,
+            getToken,
+          ) as maplibregl.RequestTransformFunction,
         })
 
-        mapInstance.addControl(new maplibregl.NavigationControl({
-          showCompass: true,
-          showZoom: true,
-          visualizePitch: true,
-        }), 'top-right')
+        mapInstance.addControl(
+          new maplibregl.NavigationControl({
+            showCompass: true,
+            showZoom: true,
+            visualizePitch: true,
+          }),
+          'top-right',
+        )
 
-        mapInstance.addControl(new maplibregl.GeolocateControl({
-          showUserLocation: true,
-          trackUserLocation: true,
-          positionOptions: { enableHighAccuracy: true }
-        }))
+        mapInstance.addControl(
+          new maplibregl.GeolocateControl({
+            showUserLocation: true,
+            trackUserLocation: true,
+            positionOptions: { enableHighAccuracy: true },
+          }),
+        )
 
-        mapInstance.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }))
+        mapInstance.addControl(
+          new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }),
+        )
         mapInstance.addControl(new maplibregl.GlobeControl())
 
-        const geoPlaces = new GeoPlaces(client, mapInstance)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate maplibre-gl types from geocoder plugin
+        const geoPlaces = new GeoPlaces(client as any, mapInstance as any)
         const geocoder = new MaplibreGeocoder(geoPlaces, {
           maplibregl: maplibregl,
           placeholder: 'Search for places',
@@ -201,7 +276,9 @@ export default function MapDemo() {
         map.current = mapInstance
       } catch (err) {
         console.error('Map initialization error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to initialize map')
+        setError(
+          err instanceof Error ? err.message : 'Failed to initialize map',
+        )
         setLoading(false)
       }
     }
@@ -214,7 +291,16 @@ export default function MapDemo() {
         map.current = null
       }
     }
-  }, [clientLoading, config?.apiUrl, client, clientError, getToken, colorScheme, mapStyle])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    clientLoading,
+    API_URL,
+    client,
+    clientError,
+    getToken,
+    colorScheme,
+    mapStyle,
+  ])
 
   useEffect(() => {
     const filterCountryChanged = prevFilterCountryRef.current !== filterCountry
@@ -246,21 +332,22 @@ export default function MapDemo() {
     }
 
     if (politicalViewSelectRef.current) {
-      politicalViewSelectRef.current.disabled = mapStyle === 'Satellite' || loading
+      politicalViewSelectRef.current.disabled =
+        mapStyle === 'Satellite' || loading
       if (mapStyle === 'Satellite') setPoliticalView('')
     }
 
-    if (map.current && config) {
+    if (map.current) {
       const params = new URLSearchParams({
         'color-scheme': colorScheme,
-        ...(politicalView && { 'political-view': politicalView })
+        ...(politicalView && { 'political-view': politicalView }),
       })
 
-      const styleUrl = `${config.apiUrl}/maps/${mapStyle}/descriptor?${params.toString()}`
+      const styleUrl = `${API_URL}/maps/${mapStyle}/descriptor?${params.toString()}`
       const setStyle = async (styleUrl: string, language: string) => {
         try {
           const style = await getStyleWithPreferredLanguage(styleUrl, language)
-          map.current?.setStyle(style)
+          map.current?.setStyle(style as maplibregl.StyleSpecification)
         } catch (error) {
           console.error('Failed to set map style:', error)
         }
@@ -268,14 +355,21 @@ export default function MapDemo() {
 
       setStyle(styleUrl, language)
     }
-  }, [mapStyle, colorScheme, politicalView, config, language, getStyleWithPreferredLanguage, loading])
+  }, [
+    mapStyle,
+    colorScheme,
+    politicalView,
+    language,
+    getStyleWithPreferredLanguage,
+    loading,
+  ])
 
   if (error) {
     return (
-      <div className="w-full h-[600px] bg-red-50 rounded-lg flex items-center justify-center">
+      <div className="flex h-150 w-full items-center justify-center rounded-lg bg-red-50">
         <div className="text-center">
-          <p className="text-red-600 font-semibold">Failed to load map</p>
-          <p className="text-red-500 text-sm mt-2">{error}</p>
+          <p className="font-semibold text-red-600">Failed to load map</p>
+          <p className="mt-2 text-sm text-red-500">{error}</p>
         </div>
       </div>
     )
@@ -283,15 +377,17 @@ export default function MapDemo() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow p-4 space-y-4">
+      <div className="space-y-4 rounded-lg bg-white p-4 shadow">
         {/* Row 1: Map Style, Color Scheme, Political View */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Map Style</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Map Style
+            </label>
             <select
               value={mapStyle}
               onChange={(e) => setMapStyle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >
               <option value="Standard">Standard</option>
@@ -302,12 +398,14 @@ export default function MapDemo() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Color Scheme</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Color Scheme
+            </label>
             <select
               ref={colorSchemeSelectRef}
               value={colorScheme}
               onChange={(e) => setColorScheme(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
             >
               <option value="Light">Light</option>
               <option value="Dark">Dark</option>
@@ -315,12 +413,14 @@ export default function MapDemo() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Political View</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Political View
+            </label>
             <select
               ref={politicalViewSelectRef}
               value={politicalView}
               onChange={(e) => setPoliticalView(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
             >
               <option value="">Default</option>
               <option value="IND">India</option>
@@ -337,13 +437,15 @@ export default function MapDemo() {
         </div>
 
         {/* Row 2: Country Filter, Language */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Country Filter</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Country Filter
+            </label>
             <select
               value={filterCountry}
               onChange={(e) => setFilterCountry(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >
               <option value="">All Countries</option>
@@ -365,11 +467,13 @@ export default function MapDemo() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Language
+            </label>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >
               <option value="en">English</option>
@@ -389,16 +493,16 @@ export default function MapDemo() {
         </div>
       </div>
 
-      <div className="relative w-full h-[600px] bg-white rounded-lg shadow-lg overflow-hidden">
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading map...</p>
+      <div className="relative h-150 w-full overflow-hidden rounded-lg bg-white shadow-lg">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100">
+            <div className="text-center">
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+              <p className="mt-4 text-gray-600">Loading map...</p>
+            </div>
           </div>
-        </div>
-      )}
-        <div ref={mapContainer} className="w-full h-full" />
+        )}
+        <div ref={mapContainer} className="h-full w-full" />
       </div>
     </div>
   )

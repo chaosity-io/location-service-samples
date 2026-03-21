@@ -6,13 +6,15 @@ export const metadata = {
   description: 'Find nearby stores with address search and interactive map',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
       <body>
-        <LocationProvider>
-          {children}
-        </LocationProvider>
+        <LocationProvider>{children}</LocationProvider>
       </body>
     </html>
   )

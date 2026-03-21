@@ -1,12 +1,12 @@
 'use client'
 
-import { useLocationClient } from '@chaosity/location-client-react'
 import {
   SearchTextCommand,
   type SearchTextCommandInput,
   type SearchTextCommandOutput,
   type SearchTextResultItem,
 } from '@chaosity/location-client'
+import { useLocationClient } from '@chaosity/location-client-react'
 import { useState } from 'react'
 
 /**
@@ -43,7 +43,9 @@ export function SearchBox() {
         QueryText: query,
         MaxResults: 5,
       }
-      const result: SearchTextCommandOutput = await client.send(new SearchTextCommand(input))
+      const result: SearchTextCommandOutput = await client.send(
+        new SearchTextCommand(input),
+      )
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed')
@@ -53,7 +55,8 @@ export function SearchBox() {
   }
 
   if (loading) return <div className="loading">Initializing client...</div>
-  if (clientError) return <div className="error">Client error: {clientError}</div>
+  if (clientError)
+    return <div className="error">Client error: {clientError}</div>
 
   return (
     <div className="demo-section">
@@ -77,7 +80,9 @@ export function SearchBox() {
           {results.map((item, i) => (
             <li key={item.PlaceId || i}>
               <strong>{item.Title}</strong>
-              {item.Address?.Label && <span className="label">{item.Address.Label}</span>}
+              {item.Address?.Label && (
+                <span className="label">{item.Address.Label}</span>
+              )}
               {item.Position && (
                 <span className="coords">
                   {item.Position[1]?.toFixed(4)}, {item.Position[0]?.toFixed(4)}
@@ -85,7 +90,9 @@ export function SearchBox() {
               )}
               {item.Categories && item.Categories.length > 0 && (
                 <span className="tags">
-                  {item.Categories.map(c => c.Name).filter(Boolean).join(', ')}
+                  {item.Categories.map((c) => c.Name)
+                    .filter(Boolean)
+                    .join(', ')}
                 </span>
               )}
             </li>

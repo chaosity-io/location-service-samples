@@ -1,31 +1,41 @@
 'use client'
 
 import {
+  COUNTRY_TO_REGION,
+  getStoresByRegion,
+  REGION_CENTERS,
+  stores,
+  type Store,
+} from '@/data/stores'
+import type {
+  AutocompleteCommandOutput,
+  AutocompleteResultItem,
+  GetPlaceCommandOutput,
+  ReverseGeocodeCommandOutput,
+} from '@chaosity/location-client'
+import {
   AutocompleteCommand,
-  GetPlaceCommand,
-  ReverseGeocodeCommand,
   createTransformRequest,
   fetchMapStyle,
+  GetPlaceCommand,
+  ReverseGeocodeCommand,
 } from '@chaosity/location-client'
-import type { AutocompleteCommandOutput, AutocompleteResultItem, GetPlaceCommandOutput, ReverseGeocodeCommandOutput } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  stores,
-  getStoresByRegion,
-  REGION_CENTERS,
-  COUNTRY_TO_REGION,
-  type Store,
-} from '@/data/stores'
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
 // ---------------------------------------------------------------------------
 // Haversine distance (km) between two points
 // ---------------------------------------------------------------------------
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function haversine(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
   const R = 6371
   const toRad = (deg: number) => (deg * Math.PI) / 180
   const dLat = toRad(lat2 - lat1)
@@ -45,16 +55,17 @@ const CATEGORY_COLORS: Record<Store['category'], string> = {
   express: '#6b7280',
 }
 
-const CATEGORY_BADGE: Record<Store['category'], { bg: string; text: string }> = {
-  flagship: { bg: 'bg-blue-100 text-blue-700', text: 'Flagship' },
-  outlet: { bg: 'bg-green-100 text-green-700', text: 'Outlet' },
-  express: { bg: 'bg-gray-100 text-gray-600', text: 'Express' },
-}
+const CATEGORY_BADGE: Record<Store['category'], { bg: string; text: string }> =
+  {
+    flagship: { bg: 'bg-blue-100 text-blue-700', text: 'Flagship' },
+    outlet: { bg: 'bg-green-100 text-green-700', text: 'Outlet' },
+    express: { bg: 'bg-gray-100 text-gray-600', text: 'Express' },
+  }
 
 const REGION_LABELS: Record<string, string> = {
   'north-america': 'North America',
-  'europe': 'Europe',
-  'oceania': 'Australia & New Zealand',
+  europe: 'Europe',
+  oceania: 'Australia & New Zealand',
 }
 
 // ---------------------------------------------------------------------------
@@ -74,14 +85,21 @@ export default function StoreFinder() {
   const searchMarker = useRef<maplibregl.Marker | null>(null)
   const openPopup = useRef<maplibregl.Popup | null>(null)
 
-  const { client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
+  const {
+    client,
+    getToken,
+    loading: clientLoading,
+    error: clientError,
+  } = useLocationClient()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<AutocompleteResultItem[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [searchPosition, setSearchPosition] = useState<[number, number] | null>(null)
+  const [searchPosition, setSearchPosition] = useState<[number, number] | null>(
+    null,
+  )
   const [radius, setRadius] = useState(25)
   const [filteredStores, setFilteredStores] = useState<StoreWithDistance[]>([])
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
@@ -101,7 +119,10 @@ export default function StoreFinder() {
     const detectRegion = async (lng: number, lat: number) => {
       try {
         const response: ReverseGeocodeCommandOutput = await client.send(
-          new ReverseGeocodeCommand({ QueryPosition: [lng, lat], MaxResults: 1 })
+          new ReverseGeocodeCommand({
+            QueryPosition: [lng, lat],
+            MaxResults: 1,
+          }),
         )
         const countryCode =
           response.ResultItems?.[0]?.Address?.Country?.Code2 ??
@@ -116,7 +137,11 @@ export default function StoreFinder() {
             // Pan map to detected region
             if (map.current) {
               const rc = REGION_CENTERS[region]
-              map.current.flyTo({ center: rc.center, zoom: rc.zoom, speed: 1.5 })
+              map.current.flyTo({
+                center: rc.center,
+                zoom: rc.zoom,
+                speed: 1.5,
+              })
             }
           }
         }
@@ -129,45 +154,44 @@ export default function StoreFinder() {
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => detectRegion(position.coords.longitude, position.coords.latitude),
+        (position) =>
+          detectRegion(position.coords.longitude, position.coords.latitude),
         () => setDetectingLocation(false),
-        { timeout: 5000 }
+        { timeout: 5000 },
       )
     } else {
       setDetectingLocation(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, clientLoading])
 
   // ---------------------------------------------------------------------------
   // Switch region manually
   // ---------------------------------------------------------------------------
-  const switchRegion = useCallback(
-    (region: string) => {
-      setActiveRegion(region)
-      const regionList = getStoresByRegion(region)
-      setRegionStores(regionList)
-      setHasSearched(false)
-      setFilteredStores([])
-      setSearchPosition(null)
-      setSelectedStoreId(null)
-      setQuery('')
+  const switchRegion = useCallback((region: string) => {
+    setActiveRegion(region)
+    const regionList = getStoresByRegion(region)
+    setRegionStores(regionList)
+    setHasSearched(false)
+    setFilteredStores([])
+    setSearchPosition(null)
+    setSelectedStoreId(null)
+    setQuery('')
 
-      // Remove search marker
-      if (searchMarker.current) {
-        searchMarker.current.remove()
-        searchMarker.current = null
-      }
+    // Remove search marker
+    if (searchMarker.current) {
+      searchMarker.current.remove()
+      searchMarker.current = null
+    }
 
-      // Fly to region and re-add markers
-      if (map.current) {
-        const rc = REGION_CENTERS[region]
-        map.current.flyTo({ center: rc.center, zoom: rc.zoom, speed: 1.5 })
-        showAllStores(regionList)
-      }
-    },
-    [],
-  )
+    // Fly to region and re-add markers
+    if (map.current) {
+      const rc = REGION_CENTERS[region]
+      map.current.flyTo({ center: rc.center, zoom: rc.zoom, speed: 1.5 })
+      showAllStores(regionList)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ---------------------------------------------------------------------------
   // Filter stores by radius from a point
@@ -177,7 +201,12 @@ export default function StoreFinder() {
       return regionStores
         .map((s) => ({
           ...s,
-          distance: haversine(center[1], center[0], s.position[1], s.position[0]),
+          distance: haversine(
+            center[1],
+            center[0],
+            s.position[1],
+            s.position[0],
+          ),
         }))
         .filter((s) => s.distance <= radiusKm)
         .sort((a, b) => a.distance - b.distance)
@@ -208,7 +237,10 @@ export default function StoreFinder() {
       const bounds = new maplibregl.LngLatBounds()
 
       storeList.forEach((store) => {
-        const popup = new maplibregl.Popup({ offset: 25, maxWidth: '260px' }).setHTML(
+        const popup = new maplibregl.Popup({
+          offset: 25,
+          maxWidth: '260px',
+        }).setHTML(
           `<div style="font-family:system-ui,-apple-system,sans-serif">
             <p style="font-weight:600;margin:0 0 4px">${store.name}</p>
             <p style="color:#6b7280;font-size:13px;margin:0 0 4px">${store.address}</p>
@@ -217,7 +249,9 @@ export default function StoreFinder() {
           </div>`,
         )
 
-        const marker = new maplibregl.Marker({ color: CATEGORY_COLORS[store.category] })
+        const marker = new maplibregl.Marker({
+          color: CATEGORY_COLORS[store.category],
+        })
           .setLngLat(store.position)
           .setPopup(popup)
           .addTo(map.current!)
@@ -250,7 +284,10 @@ export default function StoreFinder() {
       const bounds = new maplibregl.LngLatBounds()
 
       storeList.forEach((store) => {
-        const popup = new maplibregl.Popup({ offset: 25, maxWidth: '260px' }).setHTML(
+        const popup = new maplibregl.Popup({
+          offset: 25,
+          maxWidth: '260px',
+        }).setHTML(
           `<div style="font-family:system-ui,-apple-system,sans-serif">
             <p style="font-weight:600;margin:0 0 4px">${store.name}</p>
             <p style="color:#6b7280;font-size:13px;margin:0 0 4px">${store.address}</p>
@@ -259,7 +296,9 @@ export default function StoreFinder() {
           </div>`,
         )
 
-        const marker = new maplibregl.Marker({ color: CATEGORY_COLORS[store.category] })
+        const marker = new maplibregl.Marker({
+          color: CATEGORY_COLORS[store.category],
+        })
           .setLngLat(store.position)
           .setPopup(popup)
           .addTo(map.current!)
@@ -353,7 +392,8 @@ export default function StoreFinder() {
         )
 
         const demSourceId = Object.entries(
-          (style as { sources?: Record<string, { type?: string }> }).sources ?? {},
+          (style as { sources?: Record<string, { type?: string }> }).sources ??
+            {},
         ).find(([, src]) => src.type === 'raster-dem')?.[0]
         if (demSourceId) {
           instance.addControl(
@@ -379,7 +419,9 @@ export default function StoreFinder() {
         setLoading(false)
       } catch (err) {
         console.error('Map initialization error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to initialize map')
+        setError(
+          err instanceof Error ? err.message : 'Failed to initialize map',
+        )
         setLoading(false)
       }
     })()
@@ -462,7 +504,12 @@ export default function StoreFinder() {
               const nearby = regionList
                 .map((s) => ({
                   ...s,
-                  distance: haversine(pos[1], pos[0], s.position[1], s.position[0]),
+                  distance: haversine(
+                    pos[1],
+                    pos[0],
+                    s.position[1],
+                    s.position[0],
+                  ),
                 }))
                 .filter((s) => s.distance <= radius)
                 .sort((a, b) => a.distance - b.distance)
@@ -481,7 +528,10 @@ export default function StoreFinder() {
               const bounds = new maplibregl.LngLatBounds()
               bounds.extend(pos)
               nearby.forEach((store) => {
-                const popup = new maplibregl.Popup({ offset: 25, maxWidth: '260px' }).setHTML(
+                const popup = new maplibregl.Popup({
+                  offset: 25,
+                  maxWidth: '260px',
+                }).setHTML(
                   `<div style="font-family:system-ui,-apple-system,sans-serif">
                     <p style="font-weight:600;margin:0 0 4px">${store.name}</p>
                     <p style="color:#6b7280;font-size:13px;margin:0 0 4px">${store.address}</p>
@@ -489,7 +539,9 @@ export default function StoreFinder() {
                     <p style="color:#6b7280;font-size:12px;margin:0">${store.hours}</p>
                   </div>`,
                 )
-                const marker = new maplibregl.Marker({ color: CATEGORY_COLORS[store.category] })
+                const marker = new maplibregl.Marker({
+                  color: CATEGORY_COLORS[store.category],
+                })
                   .setLngLat(store.position)
                   .setPopup(popup)
                   .addTo(map.current!)
@@ -525,14 +577,17 @@ export default function StoreFinder() {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const pos: [number, number] = [position.coords.longitude, position.coords.latitude]
+        const pos: [number, number] = [
+          position.coords.longitude,
+          position.coords.latitude,
+        ]
         setQuery('My Location')
         setSearchPosition(pos)
 
         // Detect region from current location
         try {
           const response: ReverseGeocodeCommandOutput = await client.send(
-            new ReverseGeocodeCommand({ QueryPosition: pos, MaxResults: 1 })
+            new ReverseGeocodeCommand({ QueryPosition: pos, MaxResults: 1 }),
           )
           const countryCode =
             response.ResultItems?.[0]?.Address?.Country?.Code2 ??
@@ -582,30 +637,30 @@ export default function StoreFinder() {
   // ---------------------------------------------------------------------------
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-red-50">
+      <div className="flex flex-1 items-center justify-center bg-red-50">
         <div className="text-center">
-          <p className="text-red-600 font-semibold">Failed to load</p>
-          <p className="text-red-500 text-sm mt-2">{error}</p>
+          <p className="font-semibold text-red-600">Failed to load</p>
+          <p className="mt-2 text-sm text-red-500">{error}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex flex-1 overflow-hidden">
       {/* ------------------------------------------------------------------ */}
       {/* Left sidebar                                                        */}
       {/* ------------------------------------------------------------------ */}
-      <div className="w-[400px] shrink-0 border-r border-gray-200 bg-white flex flex-col">
+      <div className="flex w-100 shrink-0 flex-col border-r border-gray-200 bg-white">
         {/* Search area */}
-        <div className="p-4 border-b border-gray-100 space-y-3">
+        <div className="space-y-3 border-b border-gray-100 p-4">
           {/* Region tabs */}
           <div className="flex gap-1">
             {Object.entries(REGION_LABELS).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => switchRegion(key)}
-                className={`flex-1 py-1.5 text-[11px] font-medium rounded-md transition-colors ${
+                className={`flex-1 rounded-md py-1.5 text-[11px] font-medium transition-colors ${
                   activeRegion === key
                     ? 'bg-indigo-600 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -628,19 +683,23 @@ export default function StoreFinder() {
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               placeholder="Search an address..."
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+              <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
                 {suggestions.map((suggestion, index) => (
                   <button
                     key={index}
                     onMouseDown={() => selectSuggestion(suggestion)}
-                    className="w-full px-4 py-2.5 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-50 last:border-0"
+                    className="w-full border-b border-gray-50 px-4 py-2.5 text-left last:border-0 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
                   >
-                    <div className="text-sm font-medium text-gray-900">{suggestion.Title}</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {suggestion.Title}
+                    </div>
                     {suggestion.Address?.Label && (
-                      <div className="text-xs text-gray-500 mt-0.5">{suggestion.Address.Label}</div>
+                      <div className="mt-0.5 text-xs text-gray-500">
+                        {suggestion.Address.Label}
+                      </div>
                     )}
                   </button>
                 ))}
@@ -651,9 +710,14 @@ export default function StoreFinder() {
           {/* Use My Location */}
           <button
             onClick={useMyLocation}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-50 px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -672,15 +736,15 @@ export default function StoreFinder() {
 
           {/* Radius selector */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <label className="text-xs font-medium tracking-wide text-gray-500 uppercase">
               Radius
             </label>
-            <div className="flex gap-1 flex-1">
+            <div className="flex flex-1 gap-1">
               {[5, 10, 25, 50].map((r) => (
                 <button
                   key={r}
                   onClick={() => setRadius(r)}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${
                     radius === r
                       ? 'bg-gray-900 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -694,15 +758,17 @@ export default function StoreFinder() {
         </div>
 
         {/* Results header */}
-        <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-2.5">
           {hasSearched ? (
             <p className="text-xs font-medium text-gray-600">
-              {filteredStores.length} store{filteredStores.length !== 1 ? 's' : ''} within{' '}
-              {radius} km
+              {filteredStores.length} store
+              {filteredStores.length !== 1 ? 's' : ''} within {radius} km
             </p>
           ) : (
             <p className="text-xs text-gray-500">
-              {detectingLocation ? 'Detecting your location...' : `${regionStores.length} stores in ${REGION_LABELS[activeRegion]}`}
+              {detectingLocation
+                ? 'Detecting your location...'
+                : `${regionStores.length} stores in ${REGION_LABELS[activeRegion]}`}
             </p>
           )}
         </div>
@@ -713,12 +779,18 @@ export default function StoreFinder() {
             regionStores.map((store) => (
               <div
                 key={store.id}
-                className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                  selectedStoreId === store.id ? 'bg-blue-50 ring-inset ring-2 ring-blue-500' : ''
+                className={`cursor-pointer border-b border-gray-100 px-4 py-3 transition-colors hover:bg-gray-50 ${
+                  selectedStoreId === store.id
+                    ? 'bg-blue-50 ring-2 ring-blue-500 ring-inset'
+                    : ''
                 }`}
                 onClick={() => {
                   setSelectedStoreId(store.id)
-                  map.current?.flyTo({ center: store.position, zoom: 14, speed: 1.2 })
+                  map.current?.flyTo({
+                    center: store.position,
+                    zoom: 14,
+                    speed: 1.2,
+                  })
                   const idx = regionStores.findIndex((s) => s.id === store.id)
                   if (idx >= 0 && storeMarkers.current[idx]) {
                     if (openPopup.current) openPopup.current.remove()
@@ -728,15 +800,17 @@ export default function StoreFinder() {
                 }}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-gray-900">{store.name}</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    {store.name}
+                  </h3>
                   <span
-                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${CATEGORY_BADGE[store.category].bg}`}
+                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${CATEGORY_BADGE[store.category].bg}`}
                   >
                     {CATEGORY_BADGE[store.category].text}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{store.address}</p>
-                <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500">{store.address}</p>
+                <div className="mt-1.5 flex items-center gap-3 text-xs text-gray-500">
                   <span>{store.phone}</span>
                   <span className="text-gray-300">|</span>
                   <span>{store.hours}</span>
@@ -746,8 +820,12 @@ export default function StoreFinder() {
 
           {hasSearched && filteredStores.length === 0 && (
             <div className="px-4 py-12 text-center">
-              <p className="text-sm text-gray-500">No stores found within {radius} km.</p>
-              <p className="text-xs text-gray-400 mt-1">Try increasing the search radius.</p>
+              <p className="text-sm text-gray-500">
+                No stores found within {radius} km.
+              </p>
+              <p className="mt-1 text-xs text-gray-400">
+                Try increasing the search radius.
+              </p>
             </div>
           )}
 
@@ -756,22 +834,24 @@ export default function StoreFinder() {
               <div
                 key={store.id}
                 onClick={() => selectStore(store)}
-                className={`px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors ${
+                className={`cursor-pointer border-b border-gray-100 px-4 py-3 transition-colors ${
                   selectedStoreId === store.id
-                    ? 'bg-blue-50 ring-inset ring-2 ring-blue-500'
+                    ? 'bg-blue-50 ring-2 ring-blue-500 ring-inset'
                     : 'hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-gray-900">{store.name}</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    {store.name}
+                  </h3>
                   <span
-                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${CATEGORY_BADGE[store.category].bg}`}
+                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${CATEGORY_BADGE[store.category].bg}`}
                   >
                     {CATEGORY_BADGE[store.category].text}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{store.address}</p>
-                <div className="flex items-center justify-between mt-2">
+                <p className="mt-1 text-xs text-gray-500">{store.address}</p>
+                <div className="mt-2 flex items-center justify-between">
                   <div className="flex items-center gap-3 text-xs text-gray-500">
                     <span className="font-medium text-gray-700">
                       {store.distance.toFixed(1)} km
@@ -789,7 +869,7 @@ export default function StoreFinder() {
                     Get Directions
                   </a>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-1">{store.hours}</p>
+                <p className="mt-1 text-[11px] text-gray-400">{store.hours}</p>
               </div>
             ))}
         </div>
@@ -798,16 +878,16 @@ export default function StoreFinder() {
       {/* ------------------------------------------------------------------ */}
       {/* Map                                                                 */}
       {/* ------------------------------------------------------------------ */}
-      <div className="flex-1 relative">
+      <div className="relative flex-1">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto" />
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-b-2 border-blue-600" />
               <p className="mt-3 text-sm text-gray-600">Loading map...</p>
             </div>
           </div>
         )}
-        <div ref={mapContainer} className="w-full h-full" />
+        <div ref={mapContainer} className="h-full w-full" />
       </div>
     </div>
   )

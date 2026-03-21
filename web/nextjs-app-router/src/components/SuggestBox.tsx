@@ -1,12 +1,12 @@
 'use client'
 
-import { useLocationClient } from '@chaosity/location-client-react'
 import {
   SuggestCommand,
   type SuggestCommandInput,
   type SuggestCommandOutput,
   type SuggestResultItem,
 } from '@chaosity/location-client'
+import { useLocationClient } from '@chaosity/location-client-react'
 import { useState } from 'react'
 
 /**
@@ -51,7 +51,9 @@ export function SuggestBox() {
         QueryText: value,
         MaxResults: 5,
       }
-      const result: SuggestCommandOutput = await client.send(new SuggestCommand(input))
+      const result: SuggestCommandOutput = await client.send(
+        new SuggestCommand(input),
+      )
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Suggest failed')
@@ -77,7 +79,9 @@ export function SuggestBox() {
             <li key={i}>
               <strong>{item.Title}</strong>
               {item.SuggestResultItemType && (
-                <span className={`type-badge ${item.SuggestResultItemType.toLowerCase()}`}>
+                <span
+                  className={`type-badge ${item.SuggestResultItemType.toLowerCase()}`}
+                >
                   {item.SuggestResultItemType}
                 </span>
               )}

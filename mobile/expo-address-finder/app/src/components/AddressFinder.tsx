@@ -48,14 +48,23 @@ interface AddressResult {
 
 export default function AddressFinder() {
   const cameraRef = useRef<Camera>(null)
-  const { client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
+  const {
+    client,
+    getToken,
+    loading: clientLoading,
+    error: clientError,
+  } = useLocationClient()
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<AutocompleteResultItem[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [selectedAddress, setSelectedAddress] = useState<AddressResult | null>(null)
+  const [selectedAddress, setSelectedAddress] = useState<AddressResult | null>(
+    null,
+  )
   const [isValidating, setIsValidating] = useState(false)
   const [mapCenter, setMapCenter] = useState<[number, number]>([-98.5, 39.8])
-  const [searchMode, setSearchMode] = useState<'autocomplete' | 'geocode'>('autocomplete')
+  const [searchMode, setSearchMode] = useState<'autocomplete' | 'geocode'>(
+    'autocomplete',
+  )
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const styleUrl = `${API_URL}/maps/Standard/descriptor?color-scheme=Light&terrain=Hillshade`
@@ -79,7 +88,9 @@ export default function AddressFinder() {
             }
             const command = new GeocodeCommand(commandInput)
             const response: GeocodeCommandOutput = await client.send(command)
-            const results: AutocompleteResultItem[] = (response.ResultItems || []).map((item) => ({
+            const results: AutocompleteResultItem[] = (
+              response.ResultItems || []
+            ).map((item) => ({
               Title: item.Address?.Label || '',
               Address: item.Address,
               PlaceId: item.PlaceId,
@@ -95,7 +106,8 @@ export default function AddressFinder() {
               BiasPosition: mapCenter,
             }
             const command = new AutocompleteCommand(commandInput)
-            const response: AutocompleteCommandOutput = await client.send(command)
+            const response: AutocompleteCommandOutput =
+              await client.send(command)
             setSuggestions(response.ResultItems || [])
             setShowSuggestions(true)
           }
@@ -110,7 +122,6 @@ export default function AddressFinder() {
   // Re-search when mode switches
   useEffect(() => {
     if (query.length >= 3) searchAddress(query)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchAddress])
 
   const selectAddress = useCallback(
@@ -119,7 +130,10 @@ export default function AddressFinder() {
       setIsValidating(true)
       setShowSuggestions(false)
       try {
-        const command = new GetPlaceCommand({ PlaceId: suggestion.PlaceId, Language: 'en' })
+        const command = new GetPlaceCommand({
+          PlaceId: suggestion.PlaceId,
+          Language: 'en',
+        })
         const response: GetPlaceCommandOutput = await client.send(command)
         const address: AddressResult = {
           placeId: suggestion.PlaceId,
@@ -130,7 +144,10 @@ export default function AddressFinder() {
           city: response.Address?.Locality,
           province: response.Address?.Region?.Name,
           postalCode: response.Address?.PostalCode,
-          country: response.Address?.Country?.Code3 ?? response.Address?.Country?.Name ?? undefined,
+          country:
+            response.Address?.Country?.Code3 ??
+            response.Address?.Country?.Name ??
+            undefined,
           position: response.Position as [number, number],
         }
         setSelectedAddress(address)
@@ -155,7 +172,9 @@ export default function AddressFinder() {
       const { status } = await Location.requestForegroundPermissionsAsync()
       if (status !== 'granted') return
 
-      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      })
       const { longitude, latitude } = location.coords
 
       const command = new ReverseGeocodeCommand({
@@ -174,7 +193,10 @@ export default function AddressFinder() {
           city: result.Address?.Locality,
           province: result.Address?.Region?.Name,
           postalCode: result.Address?.PostalCode,
-          country: result.Address?.Country?.Code3 ?? result.Address?.Country?.Name ?? undefined,
+          country:
+            result.Address?.Country?.Code3 ??
+            result.Address?.Country?.Name ??
+            undefined,
           position: [longitude, latitude],
         }
         setSelectedAddress(address)
@@ -214,17 +236,33 @@ export default function AddressFinder() {
         <View style={styles.modeRow}>
           <TouchableOpacity
             onPress={() => setSearchMode('autocomplete')}
-            style={[styles.modeBtn, searchMode === 'autocomplete' && styles.modeBtnActive]}
+            style={[
+              styles.modeBtn,
+              searchMode === 'autocomplete' && styles.modeBtnActive,
+            ]}
           >
-            <Text style={[styles.modeBtnText, searchMode === 'autocomplete' && styles.modeBtnTextActive]}>
+            <Text
+              style={[
+                styles.modeBtnText,
+                searchMode === 'autocomplete' && styles.modeBtnTextActive,
+              ]}
+            >
               Autocomplete
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setSearchMode('geocode')}
-            style={[styles.modeBtn, searchMode === 'geocode' && styles.modeBtnActive]}
+            style={[
+              styles.modeBtn,
+              searchMode === 'geocode' && styles.modeBtnActive,
+            ]}
           >
-            <Text style={[styles.modeBtnText, searchMode === 'geocode' && styles.modeBtnTextActive]}>
+            <Text
+              style={[
+                styles.modeBtnText,
+                searchMode === 'geocode' && styles.modeBtnTextActive,
+              ]}
+            >
               Geocode
             </Text>
           </TouchableOpacity>
@@ -249,7 +287,10 @@ export default function AddressFinder() {
             autoCorrect={false}
             autoCapitalize="none"
           />
-          <TouchableOpacity style={styles.locationBtn} onPress={useCurrentLocation}>
+          <TouchableOpacity
+            style={styles.locationBtn}
+            onPress={useCurrentLocation}
+          >
             <Text style={styles.locationBtnText}>📍</Text>
           </TouchableOpacity>
         </View>
@@ -262,10 +303,15 @@ export default function AddressFinder() {
               keyExtractor={(_, i) => String(i)}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.suggestionItem} onPress={() => selectAddress(item)}>
+                <TouchableOpacity
+                  style={styles.suggestionItem}
+                  onPress={() => selectAddress(item)}
+                >
                   <Text style={styles.suggestionTitle}>{item.Title}</Text>
                   {item.Address?.Label && (
-                    <Text style={styles.suggestionLabel}>{item.Address.Label}</Text>
+                    <Text style={styles.suggestionLabel}>
+                      {item.Address.Label}
+                    </Text>
                   )}
                 </TouchableOpacity>
               )}
@@ -289,7 +335,9 @@ export default function AddressFinder() {
               {selectedAddress.addressLineOne ? (
                 <View style={styles.addressField}>
                   <Text style={styles.fieldLabel}>Street</Text>
-                  <Text style={styles.fieldValue}>{selectedAddress.addressLineOne}</Text>
+                  <Text style={styles.fieldValue}>
+                    {selectedAddress.addressLineOne}
+                  </Text>
                 </View>
               ) : null}
               {selectedAddress.city ? (
@@ -301,19 +349,25 @@ export default function AddressFinder() {
               {selectedAddress.province ? (
                 <View style={styles.addressField}>
                   <Text style={styles.fieldLabel}>State / Province</Text>
-                  <Text style={styles.fieldValue}>{selectedAddress.province}</Text>
+                  <Text style={styles.fieldValue}>
+                    {selectedAddress.province}
+                  </Text>
                 </View>
               ) : null}
               {selectedAddress.postalCode ? (
                 <View style={styles.addressField}>
                   <Text style={styles.fieldLabel}>Postal Code</Text>
-                  <Text style={styles.fieldValue}>{selectedAddress.postalCode}</Text>
+                  <Text style={styles.fieldValue}>
+                    {selectedAddress.postalCode}
+                  </Text>
                 </View>
               ) : null}
               {selectedAddress.country ? (
                 <View style={styles.addressField}>
                   <Text style={styles.fieldLabel}>Country</Text>
-                  <Text style={styles.fieldValue}>{selectedAddress.country}</Text>
+                  <Text style={styles.fieldValue}>
+                    {selectedAddress.country}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -353,10 +407,20 @@ export default function AddressFinder() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
   loadingText: { marginTop: 12, color: '#6b7280', fontSize: 14 },
   errorTitle: { fontSize: 16, fontWeight: '600', color: '#dc2626' },
-  errorText: { marginTop: 8, fontSize: 13, color: '#ef4444', textAlign: 'center' },
+  errorText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#ef4444',
+    textAlign: 'center',
+  },
   panel: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -423,7 +487,12 @@ const styles = StyleSheet.create({
   },
   suggestionTitle: { fontSize: 14, fontWeight: '500', color: '#111827' },
   suggestionLabel: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  validatingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  validatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
   validatingText: { fontSize: 13, color: '#6b7280' },
   addressCard: {
     marginTop: 10,
@@ -433,12 +502,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#bbf7d0',
   },
-  addressCardTitle: { fontSize: 14, fontWeight: '600', color: '#166534', marginBottom: 8 },
+  addressCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#166534',
+    marginBottom: 8,
+  },
   addressGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   addressField: { minWidth: '45%' },
   fieldLabel: { fontSize: 11, fontWeight: '500', color: '#374151' },
   fieldValue: { fontSize: 13, color: '#111827', marginTop: 1 },
-  mapContainer: { flex: 1, margin: 12, marginTop: 0, borderRadius: 12, overflow: 'hidden' },
+  mapContainer: {
+    flex: 1,
+    margin: 12,
+    marginTop: 0,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   map: { flex: 1 },
   markerDot: {
     width: 16,

@@ -1,8 +1,17 @@
 'use client'
 
-import { GeocodeCommand, GeocodeCommandInput, GeocodeCommandOutput } from '@chaosity/location-client'
-import { GeoPlaces, createTransformRequest, fetchMapStyle } from '@chaosity/location-client'
-import { useLocationClient, useMapLanguage } from '@chaosity/location-client-react'
+import {
+  GeoPlaces,
+  GeocodeCommand,
+  GeocodeCommandInput,
+  GeocodeCommandOutput,
+  createTransformRequest,
+  fetchMapStyle,
+} from '@chaosity/location-client'
+import {
+  useLocationClient,
+  useMapLanguage,
+} from '@chaosity/location-client-react'
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
 import maplibregl from 'maplibre-gl'
@@ -18,7 +27,12 @@ export default function MapDemo() {
   const terrainControlRef = useRef<maplibregl.TerrainControl | null>(null)
   const prevFilterCountryRef = useRef<string>('')
   const prevPoliticalViewRef = useRef<string>('')
-  const { client, getToken, loading: clientLoading, error: clientError } = useLocationClient()
+  const {
+    client,
+    getToken,
+    loading: clientLoading,
+    error: clientError,
+  } = useLocationClient()
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,35 +49,49 @@ export default function MapDemo() {
 
   const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
 
-  const flyToCountryCenter = useCallback(async (countryCode: string) => {
-    if (clientLoading || !client) return
-    if (clientError) {
-      setError(clientError)
-      return
-    }
-
-    const commandInput: GeocodeCommandInput = {
-      QueryComponents: { Country: countryCode }
-    }
-    const response: GeocodeCommandOutput = await client.send(new GeocodeCommand(commandInput))
-
-    if (response.ResultItems && response.ResultItems.length > 0) {
-      const countryGeocode = response.ResultItems.find(item => item.PlaceType?.includes('Country'))
-      if (countryGeocode) {
-        map.current?.flyTo({
-          center: countryGeocode.Position as [number, number],
-          speed: 1.2,
-          curve: 1.4,
-        })
-        map.current?.fitBounds(countryGeocode.MapView as [number, number, number, number], { padding: 20 })
+  const flyToCountryCenter = useCallback(
+    async (countryCode: string) => {
+      if (clientLoading || !client) return
+      if (clientError) {
+        setError(clientError)
+        return
       }
-    }
-  }, [clientLoading, client, clientError])
+
+      const commandInput: GeocodeCommandInput = {
+        QueryComponents: { Country: countryCode },
+      }
+      const response: GeocodeCommandOutput = await client.send(
+        new GeocodeCommand(commandInput),
+      )
+
+      if (response.ResultItems && response.ResultItems.length > 0) {
+        const countryGeocode = response.ResultItems.find((item) =>
+          item.PlaceType?.includes('Country'),
+        )
+        if (countryGeocode) {
+          map.current?.flyTo({
+            center: countryGeocode.Position as [number, number],
+            speed: 1.2,
+            curve: 1.4,
+          })
+          map.current?.fitBounds(
+            countryGeocode.MapView as [number, number, number, number],
+            { padding: 20 },
+          )
+        }
+      }
+    },
+    [clientLoading, client, clientError],
+  )
 
   // Sync TerrainControl after each style load
   const syncTerrainControl = useCallback((mapInst: maplibregl.Map) => {
     if (terrainControlRef.current) {
-      try { mapInst.removeControl(terrainControlRef.current) } catch { /* noop */ }
+      try {
+        mapInst.removeControl(terrainControlRef.current)
+      } catch {
+        /* noop */
+      }
       terrainControlRef.current = null
     }
     if (mapInst.getSource('amazon')) {
@@ -88,7 +116,10 @@ export default function MapDemo() {
       try {
         const style = await fetchMapStyle(API_URL, mapStyle, getToken, {
           colorScheme: colorScheme as 'Light' | 'Dark',
-          ...(!isRasterStyle && { terrain: 'Terrain3D' as const, buildings: 'Buildings3D' as const }),
+          ...(!isRasterStyle && {
+            terrain: 'Terrain3D' as const,
+            buildings: 'Buildings3D' as const,
+          }),
           ...(politicalView && { politicalView }),
           language: languageRef.current,
         })
@@ -102,25 +133,36 @@ export default function MapDemo() {
           zoom: 10,
           minZoom: 3,
           maxPitch: 85,
-          transformRequest: createTransformRequest(API_URL, getToken),
+          transformRequest: createTransformRequest(
+            API_URL,
+            getToken,
+          ) as maplibregl.RequestTransformFunction,
         })
 
-        instance.addControl(new maplibregl.NavigationControl({
-          showCompass: true,
-          showZoom: true,
-          visualizePitch: true,
-        }), 'top-right')
+        instance.addControl(
+          new maplibregl.NavigationControl({
+            showCompass: true,
+            showZoom: true,
+            visualizePitch: true,
+          }),
+          'top-right',
+        )
 
-        instance.addControl(new maplibregl.GeolocateControl({
-          showUserLocation: true,
-          trackUserLocation: true,
-          positionOptions: { enableHighAccuracy: true }
-        }))
+        instance.addControl(
+          new maplibregl.GeolocateControl({
+            showUserLocation: true,
+            trackUserLocation: true,
+            positionOptions: { enableHighAccuracy: true },
+          }),
+        )
 
-        instance.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }))
+        instance.addControl(
+          new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }),
+        )
         instance.addControl(new maplibregl.GlobeControl())
 
-        const geoPlaces = new GeoPlaces(client, instance)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate maplibre-gl types from geocoder plugin
+        const geoPlaces = new GeoPlaces(client as any, instance as any)
         const geocoder = new MaplibreGeocoder(geoPlaces, {
           maplibregl: maplibregl,
           placeholder: 'Search for places',
@@ -146,7 +188,9 @@ export default function MapDemo() {
         setLoading(false)
       } catch (err) {
         console.error('Map initialization error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to initialize map')
+        setError(
+          err instanceof Error ? err.message : 'Failed to initialize map',
+        )
         setLoading(false)
       }
     })()
@@ -159,7 +203,7 @@ export default function MapDemo() {
         setMapInstance(null)
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientLoading, client, clientError])
 
   // Style update effect — uses languageRef to avoid triggering on language-only changes
@@ -169,12 +213,15 @@ export default function MapDemo() {
 
     fetchMapStyle(API_URL, mapStyle, getToken, {
       ...(!isRasterStyle && { colorScheme: colorScheme as 'Light' | 'Dark' }),
-      ...(!isRasterStyle && { terrain: 'Terrain3D' as const, buildings: 'Buildings3D' as const }),
+      ...(!isRasterStyle && {
+        terrain: 'Terrain3D' as const,
+        buildings: 'Buildings3D' as const,
+      }),
       ...(politicalView && { politicalView }),
       language: languageRef.current,
     })
-      .then(style => currentMap.setStyle(style))
-      .catch(err => console.error('[style update]', err))
+      .then((style) => currentMap.setStyle(style))
+      .catch((err) => console.error('[style update]', err))
   }, [mapStyle, colorScheme, politicalView, loading, getToken, isRasterStyle])
 
   // Country filter and language for geocoder
@@ -209,10 +256,10 @@ export default function MapDemo() {
 
   if (error) {
     return (
-      <div className="w-full h-[600px] bg-red-50 rounded-lg flex items-center justify-center">
+      <div className="flex h-150 w-full items-center justify-center rounded-lg bg-red-50">
         <div className="text-center">
-          <p className="text-red-600 font-semibold">Failed to load map</p>
-          <p className="text-red-500 text-sm mt-2">{error}</p>
+          <p className="font-semibold text-red-600">Failed to load map</p>
+          <p className="mt-2 text-sm text-red-500">{error}</p>
         </div>
       </div>
     )
@@ -220,15 +267,17 @@ export default function MapDemo() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow p-4 space-y-4">
+      <div className="space-y-4 rounded-lg bg-white p-4 shadow">
         {/* Row 1: Map Style, Color Scheme, Political View */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Map Style</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Map Style
+            </label>
             <select
               value={mapStyle}
               onChange={(e) => setMapStyle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >
               <option value="Standard">Standard</option>
@@ -239,11 +288,13 @@ export default function MapDemo() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Color Scheme</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Color Scheme
+            </label>
             <select
               value={colorScheme}
               onChange={(e) => setColorScheme(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
               disabled={isRasterStyle || loading}
             >
               <option value="Light">Light</option>
@@ -252,11 +303,13 @@ export default function MapDemo() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Political View</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Political View
+            </label>
             <select
               value={politicalView}
               onChange={(e) => setPoliticalView(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
               disabled={mapStyle === 'Satellite' || loading}
             >
               <option value="">Default</option>
@@ -274,13 +327,15 @@ export default function MapDemo() {
         </div>
 
         {/* Row 2: Country Filter, Language */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Country Filter</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Country Filter
+            </label>
             <select
               value={filterCountry}
               onChange={(e) => setFilterCountry(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >
               <option value="">All Countries</option>
@@ -302,11 +357,13 @@ export default function MapDemo() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Language
+            </label>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >
               <option value="en">English</option>
@@ -326,16 +383,16 @@ export default function MapDemo() {
         </div>
       </div>
 
-      <div className="relative w-full h-[600px] bg-white rounded-lg shadow-lg overflow-hidden">
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading map...</p>
+      <div className="relative h-150 w-full overflow-hidden rounded-lg bg-white shadow-lg">
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100">
+            <div className="text-center">
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+              <p className="mt-4 text-gray-600">Loading map...</p>
+            </div>
           </div>
-        </div>
-      )}
-        <div ref={mapContainer} className="w-full h-full" />
+        )}
+        <div ref={mapContainer} className="h-full w-full" />
       </div>
     </div>
   )

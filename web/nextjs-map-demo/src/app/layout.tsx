@@ -7,13 +7,15 @@ export const metadata = {
   icons: { icon: '/favicon.svg', type: 'image/x-icon' },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
       <body>
-        <LocationProvider>
-          {children}
-        </LocationProvider>
+        <LocationProvider>{children}</LocationProvider>
       </body>
     </html>
   )

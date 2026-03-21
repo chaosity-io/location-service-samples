@@ -1,11 +1,17 @@
 'use client'
 
-import { useState } from 'react'
-import { AddressForm, type AddressFormData, type SubmitHandler } from '@chaosity/address-form'
+import {
+  AddressForm,
+  type AddressFormData,
+  type SubmitHandler,
+} from '@chaosity/address-form'
 import '@chaosity/address-form/dist/lib/address-form.css'
+import { useState } from 'react'
 
 export function AddressFormDemo() {
-  const [submittedData, setSubmittedData] = useState<AddressFormData | null>(null)
+  const [submittedData, setSubmittedData] = useState<AddressFormData | null>(
+    null,
+  )
 
   const handleSubmit: SubmitHandler = async (getData) => {
     const data = await getData({ intendedUse: 'SingleUse' })
@@ -14,22 +20,29 @@ export function AddressFormDemo() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 py-4">
+      <header className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-3xl px-4 py-4">
           <h1 className="text-lg font-bold text-gray-900">Address Form Demo</h1>
           <p className="text-sm text-gray-500">
-            Using <code className="bg-gray-100 px-1 rounded">@chaosity/address-form</code> with autocomplete
+            Using{' '}
+            <code className="rounded bg-gray-100 px-1">
+              @chaosity/address-form
+            </code>{' '}
+            with autocomplete
           </p>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">
+      <main className="mx-auto max-w-3xl px-4 py-8">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">
             Enter your address
           </h2>
 
-          <AddressForm onSubmit={handleSubmit} allowedCountries={['US', 'CA', 'AU', 'GB']}>
+          <AddressForm
+            onSubmit={handleSubmit}
+            allowedCountries={['US', 'CA', 'AU', 'GB']}
+          >
             <div className="space-y-3">
               <AddressForm.AddressField
                 name="addressLineOne"
@@ -44,10 +57,7 @@ export function AddressFormDemo() {
                 placeholder="Apartment, suite, etc."
               />
               <div className="grid grid-cols-2 gap-3">
-                <AddressForm.TextField
-                  name="city"
-                  label="City"
-                />
+                <AddressForm.TextField name="city" label="City" />
                 <AddressForm.TextField
                   name="province"
                   label="State / Province"
@@ -58,23 +68,20 @@ export function AddressFormDemo() {
                   name="postalCode"
                   label="Postal / Zip Code"
                 />
-                <AddressForm.CountryField
-                  name="country"
-                  label="Country"
-                />
+                <AddressForm.CountryField name="country" label="Country" />
               </div>
             </div>
 
             <div className="mt-6 flex gap-3">
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
               >
                 Submit Address
               </button>
               <button
                 type="reset"
-                className="px-6 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="rounded-lg border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
                 Reset
               </button>
@@ -83,11 +90,11 @@ export function AddressFormDemo() {
         </div>
 
         {submittedData && (
-          <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-3">
+          <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="mb-3 text-base font-semibold text-gray-900">
               Submitted Address Data
             </h3>
-            <pre className="text-sm bg-gray-50 rounded-lg p-4 overflow-x-auto">
+            <pre className="overflow-x-auto rounded-lg bg-gray-50 p-4 text-sm">
               {JSON.stringify(submittedData, null, 2)}
             </pre>
           </div>

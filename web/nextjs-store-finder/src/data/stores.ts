@@ -171,7 +171,7 @@ export const stores: Store[] = [
     state: 'Berlin',
     country: 'DE',
     region: 'europe',
-    position: [13.3431, 52.5030],
+    position: [13.3431, 52.503],
     phone: '+49 30 555 0203',
     hours: 'Mon-Sat 10am-8pm',
     category: 'outlet',
@@ -197,7 +197,7 @@ export const stores: Store[] = [
     state: 'Catalonia',
     country: 'ES',
     region: 'europe',
-    position: [2.1649, 41.3930],
+    position: [2.1649, 41.393],
     phone: '+34 93 555 0205',
     hours: 'Mon-Sat 10am-9pm, Sun 11am-8pm',
     category: 'outlet',
@@ -223,7 +223,7 @@ export const stores: Store[] = [
     state: 'Stockholm',
     country: 'SE',
     region: 'europe',
-    position: [18.0632, 59.3340],
+    position: [18.0632, 59.334],
     phone: '+46 8 555 0207',
     hours: 'Mon-Fri 10am-7pm, Sat 10am-5pm',
     category: 'express',
@@ -266,7 +266,7 @@ export const stores: Store[] = [
     state: 'VIC',
     country: 'AU',
     region: 'oceania',
-    position: [144.9650, -37.8142],
+    position: [144.965, -37.8142],
     phone: '+61 3 5550 0302',
     hours: 'Mon-Sat 10am-7pm, Sun 10am-6pm',
     category: 'flagship',
@@ -279,7 +279,7 @@ export const stores: Store[] = [
     state: 'QLD',
     country: 'AU',
     region: 'oceania',
-    position: [153.0260, -27.4689],
+    position: [153.026, -27.4689],
     phone: '+61 7 5550 0303',
     hours: 'Mon-Sat 9am-6pm, Sun 10am-5pm',
     category: 'outlet',
@@ -292,7 +292,7 @@ export const stores: Store[] = [
     state: 'WA',
     country: 'AU',
     region: 'oceania',
-    position: [115.8595, -31.9530],
+    position: [115.8595, -31.953],
     phone: '+61 8 5550 0304',
     hours: 'Mon-Sat 9am-6pm, Sun 11am-5pm',
     category: 'express',
@@ -318,7 +318,7 @@ export const stores: Store[] = [
     state: 'Auckland',
     country: 'NZ',
     region: 'oceania',
-    position: [174.7787, -36.8690],
+    position: [174.7787, -36.869],
     phone: '+64 9 555 0306',
     hours: 'Mon-Sat 9am-6pm, Sun 10am-5pm',
     category: 'flagship',
@@ -355,10 +355,13 @@ export const stores: Store[] = [
 export const REGIONS = [...new Set(stores.map((s) => s.region))] as string[]
 
 /** Default map centers per region */
-export const REGION_CENTERS: Record<string, { center: [number, number]; zoom: number }> = {
+export const REGION_CENTERS: Record<
+  string,
+  { center: [number, number]; zoom: number }
+> = {
   'north-america': { center: [-98.5, 39.8], zoom: 3.5 },
-  'europe': { center: [10.0, 50.0], zoom: 4 },
-  'oceania': { center: [148.0, -30.0], zoom: 3.5 },
+  europe: { center: [10.0, 50.0], zoom: 4 },
+  oceania: { center: [148.0, -30.0], zoom: 3.5 },
 }
 
 /** Map country codes to regions */

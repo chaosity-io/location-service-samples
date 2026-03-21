@@ -9,9 +9,9 @@ export class TokenManager {
   constructor(
     private apiUrl: string,
     private clientId: string,
-    private clientSecret: string
+    private clientSecret: string,
   ) {
-    this.getToken();
+    this.getToken()
   }
 
   async getToken(): Promise<string> {
@@ -28,9 +28,9 @@ export class TokenManager {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${btoa(`${this.clientId}:${this.clientSecret}`)}`
+        Authorization: `Basic ${btoa(`${this.clientId}:${this.clientSecret}`)}`,
       },
-      body: 'grant_type=client_credentials'
+      body: 'grant_type=client_credentials',
     })
 
     if (!response.ok) {
@@ -44,7 +44,7 @@ export class TokenManager {
       token: data.access_token,
       expiresAt: data.expires_at
         ? Math.floor(data.expires_at / 1000)
-        : Math.floor(Date.now() / 1000) + (data.expires_in || 3600)
+        : Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
     }
 
     return this.cache.token

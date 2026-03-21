@@ -9,7 +9,12 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const { LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET, PORT = '3001' } = process.env
+const {
+  LOCATION_API_URL,
+  LOCATION_CLIENT_ID,
+  LOCATION_CLIENT_SECRET,
+  PORT = '3001',
+} = process.env
 if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET) {
   throw new Error('Missing required environment variables')
 }
@@ -17,7 +22,7 @@ if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET) {
 const credentials = {
   apiUrl: LOCATION_API_URL,
   clientId: LOCATION_CLIENT_ID,
-  clientSecret: LOCATION_CLIENT_SECRET
+  clientSecret: LOCATION_CLIENT_SECRET,
 }
 
 console.log('Token server ready')
@@ -31,7 +36,7 @@ app.get('/api/token', async (req, res) => {
     res.json({
       access_token: config.token,
       expires_at: config.expiresAt ?? null,
-      api_url: config.apiUrl
+      api_url: config.apiUrl,
     })
   } catch (error) {
     console.error('Token generation failed:', error)

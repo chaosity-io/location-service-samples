@@ -1,12 +1,12 @@
 'use client'
 
-import { useLocationClient } from '@chaosity/location-client-react'
 import {
   ReverseGeocodeCommand,
   type ReverseGeocodeCommandInput,
   type ReverseGeocodeCommandOutput,
   type ReverseGeocodeResultItem,
 } from '@chaosity/location-client'
+import { useLocationClient } from '@chaosity/location-client-react'
 import { useState } from 'react'
 
 /**
@@ -43,7 +43,9 @@ export function ReverseGeocodeBox() {
         QueryPosition: [parseFloat(lng), parseFloat(lat)],
         MaxResults: 3,
       }
-      const result: ReverseGeocodeCommandOutput = await client.send(new ReverseGeocodeCommand(input))
+      const result: ReverseGeocodeCommandOutput = await client.send(
+        new ReverseGeocodeCommand(input),
+      )
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reverse geocode failed')
@@ -60,11 +62,19 @@ export function ReverseGeocodeBox() {
         <div className="coord-inputs">
           <label>
             Longitude
-            <input type="text" value={lng} onChange={(e) => setLng(e.target.value)} />
+            <input
+              type="text"
+              value={lng}
+              onChange={(e) => setLng(e.target.value)}
+            />
           </label>
           <label>
             Latitude
-            <input type="text" value={lat} onChange={(e) => setLat(e.target.value)} />
+            <input
+              type="text"
+              value={lat}
+              onChange={(e) => setLat(e.target.value)}
+            />
           </label>
         </div>
         <button type="submit" disabled={searching}>
@@ -79,9 +89,13 @@ export function ReverseGeocodeBox() {
           {results.map((item, i) => (
             <li key={i}>
               <strong>{item.Title}</strong>
-              {item.Address?.Label && <span className="label">{item.Address.Label}</span>}
+              {item.Address?.Label && (
+                <span className="label">{item.Address.Label}</span>
+              )}
               {item.Distance !== undefined && (
-                <span className="coords">Distance: {item.Distance.toFixed(0)}m</span>
+                <span className="coords">
+                  Distance: {item.Distance.toFixed(0)}m
+                </span>
               )}
             </li>
           ))}

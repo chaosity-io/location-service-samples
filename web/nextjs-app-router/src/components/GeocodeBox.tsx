@@ -1,12 +1,12 @@
 'use client'
 
-import { useLocationClient } from '@chaosity/location-client-react'
 import {
   GeocodeCommand,
   type GeocodeCommandInput,
   type GeocodeCommandOutput,
   type GeocodeResultItem,
 } from '@chaosity/location-client'
+import { useLocationClient } from '@chaosity/location-client-react'
 import { useState } from 'react'
 
 /**
@@ -46,7 +46,9 @@ export function GeocodeBox() {
         QueryText: query,
         MaxResults: 3,
       }
-      const result: GeocodeCommandOutput = await client.send(new GeocodeCommand(input))
+      const result: GeocodeCommandOutput = await client.send(
+        new GeocodeCommand(input),
+      )
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Geocode failed')
@@ -79,7 +81,9 @@ export function GeocodeBox() {
           {results.map((item, i) => (
             <li key={i}>
               <strong>{item.Title}</strong>
-              {item.Address?.Label && <span className="label">{item.Address.Label}</span>}
+              {item.Address?.Label && (
+                <span className="label">{item.Address.Label}</span>
+              )}
               {item.Position && (
                 <span className="coords">
                   {item.Position[1]?.toFixed(6)}, {item.Position[0]?.toFixed(6)}

@@ -12,7 +12,7 @@ export class TokenManager {
   constructor(
     private apiUrl: string,
     private clientId: string,
-    private clientSecret: string
+    private clientSecret: string,
   ) {
     this.oauth2Client = new ClientOAuth2({
       clientId: this.clientId,
@@ -36,8 +36,9 @@ export class TokenManager {
     this.cache = {
       token: token.accessToken,
       expiresAt: token.data.expires_at
-        ? Math.floor(token.data.expires_at / 1000)
-        : Math.floor(Date.now() / 1000) + (token.data.expires_in || 3600)
+        ? Math.floor(Number(token.data.expires_at) / 1000)
+        : Math.floor(Date.now() / 1000) +
+          (Number(token.data.expires_in) || 3600),
     }
 
     return this.cache.token

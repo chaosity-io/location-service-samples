@@ -8,8 +8,19 @@ const app = express()
 app.use(express.json())
 
 // Validate environment variables
-const { LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET, LOCATION_ALLOWED_DOMAIN, PORT = '3000' } = process.env
-if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET || !LOCATION_ALLOWED_DOMAIN) {
+const {
+  LOCATION_API_URL,
+  LOCATION_CLIENT_ID,
+  LOCATION_CLIENT_SECRET,
+  LOCATION_ALLOWED_DOMAIN,
+  PORT = '3000',
+} = process.env
+if (
+  !LOCATION_API_URL ||
+  !LOCATION_CLIENT_ID ||
+  !LOCATION_CLIENT_SECRET ||
+  !LOCATION_ALLOWED_DOMAIN
+) {
   throw new Error('Missing required environment variables')
 }
 
@@ -17,7 +28,7 @@ if (!LOCATION_API_URL || !LOCATION_CLIENT_ID || !LOCATION_CLIENT_SECRET || !LOCA
 const tokenManager = new TokenManager(
   LOCATION_API_URL,
   LOCATION_CLIENT_ID,
-  LOCATION_CLIENT_SECRET
+  LOCATION_CLIENT_SECRET,
 )
 
 console.log('✓ Token manager initialized')
@@ -29,11 +40,11 @@ async function makeRequest(endpoint: string, body: Record<string, unknown>) {
   const response = await fetch(`${LOCATION_API_URL}${endpoint}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Origin': LOCATION_ALLOWED_DOMAIN,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${token}`,
+      Origin: LOCATION_ALLOWED_DOMAIN ?? '',
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
@@ -55,7 +66,7 @@ async function makeRequest(endpoint: string, body: Record<string, unknown>) {
 app.post('/api/search', async (req, res) => {
   try {
     const { query, biasPosition, maxResults = 5 } = req.body
-    
+
     if (!query) {
       return res.status(400).json({ error: 'Query is required' })
     }
@@ -63,13 +74,15 @@ app.post('/api/search', async (req, res) => {
     const result = await makeRequest('/address/search/text', {
       QueryText: query,
       BiasPosition: biasPosition,
-      MaxResults: maxResults
+      MaxResults: maxResults,
     })
 
     res.json(result)
   } catch (error) {
     console.error('Search error:', error)
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Search failed' })
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : 'Search failed' })
   }
 })
 
@@ -77,19 +90,23 @@ app.post('/api/search', async (req, res) => {
 app.post('/api/reverse-geocode', async (req, res) => {
   try {
     const { position } = req.body
-    
+
     if (!position || !Array.isArray(position) || position.length !== 2) {
-      return res.status(400).json({ error: 'Valid position [lng, lat] is required' })
+      return res
+        .status(400)
+        .json({ error: 'Valid position [lng, lat] is required' })
     }
 
     const result = await makeRequest('/address/search/reverse-geocode', {
-      QueryPosition: position
+      QueryPosition: position,
     })
 
     res.json(result)
   } catch (error) {
     console.error('Reverse geocode error:', error)
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Reverse geocode failed' })
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Reverse geocode failed',
+    })
   }
 })
 
@@ -97,7 +114,7 @@ app.post('/api/reverse-geocode', async (req, res) => {
 app.post('/api/suggest', async (req, res) => {
   try {
     const { query, biasPosition, maxResults = 5 } = req.body
-    
+
     if (!query) {
       return res.status(400).json({ error: 'Query is required' })
     }
@@ -105,13 +122,15 @@ app.post('/api/suggest', async (req, res) => {
     const result = await makeRequest('/address/suggestion', {
       QueryText: query,
       BiasPosition: biasPosition,
-      MaxResults: maxResults
+      MaxResults: maxResults,
     })
 
     res.json(result)
   } catch (error) {
     console.error('Suggest error:', error)
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Suggest failed' })
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Suggest failed',
+    })
   }
 })
 

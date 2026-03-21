@@ -1,8 +1,14 @@
 import express from 'express'
 import dotenv from 'dotenv'
 import { LocationServiceConnector } from '@chaosity/location-client/server'
-import { SearchTextCommand, ReverseGeocodeCommand, SuggestCommand } from '@chaosity/location-client'
-
+import {
+  SearchTextCommand,
+  type SearchTextCommandOutput,
+  ReverseGeocodeCommand,
+  type ReverseGeocodeCommandOutput,
+  SuggestCommand,
+  type SuggestCommandOutput,
+} from '@chaosity/location-client'
 
 dotenv.config()
 
@@ -23,13 +29,13 @@ app.post('/api/search', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' })
     }
 
-    const result = await connector.send(
+    const result: SearchTextCommandOutput = await connector.send(
       new SearchTextCommand({
         QueryText: query,
         BiasPosition: biasPosition,
-        MaxResults: maxResults
+        MaxResults: maxResults,
       }),
-      { headers: { Origin: `${req.headers.origin}` } }
+      { headers: { Origin: `${req.headers.origin}` } },
     )
 
     res.json(result)
@@ -37,7 +43,7 @@ app.post('/api/search', async (req, res) => {
     console.error('Search error:', error)
     const err = error as { statusCode?: number; message?: string }
     res.status(err.statusCode || 500).json({
-      error: err.message || 'Search failed'
+      error: err.message || 'Search failed',
     })
   }
 })
@@ -48,14 +54,16 @@ app.post('/api/reverse-geocode', async (req, res) => {
     const { position } = req.body
 
     if (!position || !Array.isArray(position) || position.length !== 2) {
-      return res.status(400).json({ error: 'Valid position [lng, lat] is required' })
+      return res
+        .status(400)
+        .json({ error: 'Valid position [lng, lat] is required' })
     }
 
-    const result = await connector.send(
+    const result: ReverseGeocodeCommandOutput = await connector.send(
       new ReverseGeocodeCommand({
-        QueryPosition: position
+        QueryPosition: position,
       }),
-      { headers: { Origin: `${req.headers.origin}` } }
+      { headers: { Origin: `${req.headers.origin}` } },
     )
 
     res.json(result)
@@ -63,7 +71,7 @@ app.post('/api/reverse-geocode', async (req, res) => {
     console.error('Reverse geocode error:', error)
     const err = error as { statusCode?: number; message?: string }
     res.status(err.statusCode || 500).json({
-      error: err.message || 'Reverse geocode failed'
+      error: err.message || 'Reverse geocode failed',
     })
   }
 })
@@ -77,13 +85,13 @@ app.post('/api/suggest', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' })
     }
 
-    const result = await connector.send(
+    const result: SuggestCommandOutput = await connector.send(
       new SuggestCommand({
         QueryText: query,
         BiasPosition: biasPosition,
-        MaxResults: maxResults
+        MaxResults: maxResults,
       }),
-      { headers: { Origin: `${req.headers.origin}` } }
+      { headers: { Origin: `${req.headers.origin}` } },
     )
 
     res.json(result)
@@ -91,7 +99,7 @@ app.post('/api/suggest', async (req, res) => {
     console.error('Suggest error:', error)
     const err = error as { statusCode?: number; message?: string }
     res.status(err.statusCode || 500).json({
-      error: err.message || 'Suggest failed'
+      error: err.message || 'Suggest failed',
     })
   }
 })

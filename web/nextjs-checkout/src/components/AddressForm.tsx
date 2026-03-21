@@ -1,16 +1,20 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import type {
+  GeocodeCommandOutput,
+  GeocodeResultItem,
+  ReverseGeocodeCommandOutput,
+} from '@chaosity/location-client'
 import {
   GeocodeCommand,
   ReverseGeocodeCommand,
   createTransformRequest,
   fetchMapStyle,
 } from '@chaosity/location-client'
-import type { GeocodeCommandOutput, GeocodeResultItem, ReverseGeocodeCommandOutput } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
@@ -77,10 +81,16 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
   const [suggestions, setSuggestions] = useState<GeocodeResultItem[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [validated, setValidated] = useState<ValidatedFields>(NO_VALIDATION)
-  const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null)
+  const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(
+    null,
+  )
   const [validating, setValidating] = useState(false)
-  const [validationResult, setValidationResult] = useState<'match' | 'mismatch' | null>(null)
-  const [biasPosition, setBiasPosition] = useState<[number, number] | null>(null)
+  const [validationResult, setValidationResult] = useState<
+    'match' | 'mismatch' | null
+  >(null)
+  const [biasPosition, setBiasPosition] = useState<[number, number] | null>(
+    null,
+  )
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -104,11 +114,13 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
             Language: 'en',
           })
           const response: ReverseGeocodeCommandOutput = await client.send(cmd)
-          const countryCode3 = response.ResultItems?.[0]?.Address?.Country?.Code3
-          const countryCode2 = response.ResultItems?.[0]?.Address?.Country?.Code2
+          const countryCode3 =
+            response.ResultItems?.[0]?.Address?.Country?.Code3
+          const countryCode2 =
+            response.ResultItems?.[0]?.Address?.Country?.Code2
           if (countryCode3 || countryCode2) {
             const match = COUNTRIES.find(
-              (c) => c.code3 === countryCode3 || c.code === countryCode2
+              (c) => c.code3 === countryCode3 || c.code === countryCode2,
             )
             if (match && address.country === 'US' && !address.address1) {
               onChange({ ...address, country: match.code })
@@ -118,7 +130,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
           // Reverse geocode failed, keep default country
         }
       },
-      () => {}
+      () => {},
     )
   }, [client]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -179,7 +191,10 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
   // Close suggestions on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as Node)
+      ) {
         setShowSuggestions(false)
       }
     }
@@ -195,7 +210,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
       }
       setValidationResult(null)
     },
-    [address, onChange, validated]
+    [address, onChange, validated],
   )
 
   const handleAddress1Change = useCallback(
@@ -231,7 +246,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
         }
       }, 300)
     },
-    [client, biasPosition, updateField]
+    [client, biasPosition, updateField],
   )
 
   const handleSelectSuggestion = useCallback(
@@ -249,9 +264,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
       const cc2 = item.Address?.Country?.Code2
       const cc3 = item.Address?.Country?.Code3
       if (cc3 || cc2) {
-        const match = COUNTRIES.find(
-          (c) => c.code3 === cc3 || c.code === cc2
-        )
+        const match = COUNTRIES.find((c) => c.code3 === cc3 || c.code === cc2)
         if (match) newCountry = match.code
       }
 
@@ -278,7 +291,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
         setMarkerPosition(item.Position as [number, number])
       }
     },
-    [address, onChange]
+    [address, onChange],
   )
 
   const handleValidateAddress = useCallback(async () => {
@@ -319,9 +332,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
         const cc2 = item.Address?.Country?.Code2
         const cc3 = item.Address?.Country?.Code3
         if (cc3 || cc2) {
-          const match = COUNTRIES.find(
-            (c) => c.code3 === cc3 || c.code === cc2
-          )
+          const match = COUNTRIES.find((c) => c.code3 === cc3 || c.code === cc2)
           if (match) validatedCountry = match.code
         }
 
@@ -366,8 +377,18 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
     }`
 
   const CheckIcon = () => (
-    <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    <svg
+      className="h-4 w-4 shrink-0 text-green-500"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M5 13l4 4L19 7"
+      />
     </svg>
   )
 
@@ -377,7 +398,9 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
 
       {/* Country selector at the top so autocomplete filters by it */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          Country
+        </label>
         <div className="relative flex items-center">
           <select
             value={address.country}
@@ -400,7 +423,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
 
       {/* Address Line 1 with autocomplete */}
       <div className="relative" ref={suggestionsRef}>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
           Address Line 1
         </label>
         <div className="relative flex items-center">
@@ -419,30 +442,33 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
           )}
         </div>
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
             {suggestions.map((item, idx) => {
               const parts: string[] = []
-              if (item.Address?.AddressNumber) parts.push(item.Address.AddressNumber)
+              if (item.Address?.AddressNumber)
+                parts.push(item.Address.AddressNumber)
               if (item.Address?.Street) parts.push(item.Address.Street)
               const streetLine = parts.join(' ')
               const detail = [
                 item.Address?.Locality,
                 item.Address?.Region?.Name,
                 item.Address?.PostalCode,
-              ].filter(Boolean).join(', ')
+              ]
+                .filter(Boolean)
+                .join(', ')
 
               return (
                 <button
                   key={item.PlaceId || idx}
                   type="button"
-                  className="w-full px-4 py-3 text-left text-sm hover:bg-indigo-50 border-b border-gray-100 last:border-0 transition-colors"
+                  className="w-full border-b border-gray-100 px-4 py-3 text-left text-sm transition-colors last:border-0 hover:bg-indigo-50"
                   onClick={() => handleSelectSuggestion(item)}
                 >
                   <span className="font-medium text-gray-900">
                     {item.Address?.Label || streetLine}
                   </span>
                   {streetLine && detail && (
-                    <span className="block text-xs text-gray-500 mt-0.5">
+                    <span className="mt-0.5 block text-xs text-gray-500">
                       {streetLine} — {detail}
                     </span>
                   )}
@@ -455,7 +481,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
 
       {/* Address Line 2 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
           Address Line 2
         </label>
         <input
@@ -463,14 +489,16 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
           placeholder="Apt, suite, unit (optional)"
           value={address.address2}
           onChange={(e) => updateField('address2', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
         />
       </div>
 
       {/* City + State row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            City
+          </label>
           <div className="relative flex items-center">
             <input
               type="text"
@@ -487,7 +515,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
             State / Province
           </label>
           <div className="relative flex items-center">
@@ -509,7 +537,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
 
       {/* Postal Code */}
       <div className="w-full sm:w-1/2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
           Postal / ZIP Code
         </label>
         <div className="relative flex items-center">
@@ -534,17 +562,17 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
           type="button"
           onClick={handleValidateAddress}
           disabled={validating || !address.address1}
-          className="px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {validating ? 'Validating...' : 'Validate Address'}
         </button>
         {validationResult === 'match' && (
-          <span className="text-sm text-green-600 font-medium flex items-center gap-1">
+          <span className="flex items-center gap-1 text-sm font-medium text-green-600">
             <CheckIcon /> Address verified
           </span>
         )}
         {validationResult === 'mismatch' && (
-          <span className="text-sm text-amber-600 font-medium">
+          <span className="text-sm font-medium text-amber-600">
             Could not verify address
           </span>
         )}
@@ -553,7 +581,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
       {/* Map preview */}
       <div
         ref={mapContainerRef}
-        className="w-full h-[200px] rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
+        className="h-50 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
       />
     </div>
   )

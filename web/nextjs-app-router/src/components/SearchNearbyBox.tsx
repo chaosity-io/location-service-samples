@@ -1,12 +1,12 @@
 'use client'
 
-import { useLocationClient } from '@chaosity/location-client-react'
 import {
   SearchNearbyCommand,
   type SearchNearbyCommandInput,
   type SearchNearbyCommandOutput,
   type SearchNearbyResultItem,
 } from '@chaosity/location-client'
+import { useLocationClient } from '@chaosity/location-client-react'
 import { useState } from 'react'
 
 /**
@@ -45,7 +45,9 @@ export function SearchNearbyBox() {
         QueryPosition: [parseFloat(lng), parseFloat(lat)],
         MaxResults: 5,
       }
-      const result: SearchNearbyCommandOutput = await client.send(new SearchNearbyCommand(input))
+      const result: SearchNearbyCommandOutput = await client.send(
+        new SearchNearbyCommand(input),
+      )
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search nearby failed')
@@ -62,11 +64,19 @@ export function SearchNearbyBox() {
         <div className="coord-inputs">
           <label>
             Longitude
-            <input type="text" value={lng} onChange={(e) => setLng(e.target.value)} />
+            <input
+              type="text"
+              value={lng}
+              onChange={(e) => setLng(e.target.value)}
+            />
           </label>
           <label>
             Latitude
-            <input type="text" value={lat} onChange={(e) => setLat(e.target.value)} />
+            <input
+              type="text"
+              value={lat}
+              onChange={(e) => setLat(e.target.value)}
+            />
           </label>
         </div>
         <button type="submit" disabled={searching}>
@@ -81,13 +91,19 @@ export function SearchNearbyBox() {
           {results.map((item, i) => (
             <li key={item.PlaceId || i}>
               <strong>{item.Title}</strong>
-              {item.Address?.Label && <span className="label">{item.Address.Label}</span>}
+              {item.Address?.Label && (
+                <span className="label">{item.Address.Label}</span>
+              )}
               {item.Distance !== undefined && (
-                <span className="coords">Distance: {item.Distance.toFixed(0)}m</span>
+                <span className="coords">
+                  Distance: {item.Distance.toFixed(0)}m
+                </span>
               )}
               {item.Categories && item.Categories.length > 0 && (
                 <span className="tags">
-                  {item.Categories.map(c => c.Name).filter(Boolean).join(', ')}
+                  {item.Categories.map((c) => c.Name)
+                    .filter(Boolean)
+                    .join(', ')}
                 </span>
               )}
             </li>

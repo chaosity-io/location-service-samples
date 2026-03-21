@@ -1,12 +1,12 @@
 'use client'
 
-import { useLocationClient } from '@chaosity/location-client-react'
 import {
   AutocompleteCommand,
   type AutocompleteCommandInput,
   type AutocompleteCommandOutput,
   type AutocompleteResultItem,
 } from '@chaosity/location-client'
+import { useLocationClient } from '@chaosity/location-client-react'
 import { useState } from 'react'
 
 /**
@@ -47,7 +47,9 @@ export function AutocompleteBox() {
         QueryText: value,
         MaxResults: 5,
       }
-      const result: AutocompleteCommandOutput = await client.send(new AutocompleteCommand(input))
+      const result: AutocompleteCommandOutput = await client.send(
+        new AutocompleteCommand(input),
+      )
       setResults(result.ResultItems || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Autocomplete failed')
@@ -72,8 +74,12 @@ export function AutocompleteBox() {
           {results.map((item, i) => (
             <li key={item.PlaceId || i}>
               <strong>{item.Title}</strong>
-              {item.Address?.Label && <span className="label">{item.Address.Label}</span>}
-              {item.PlaceId && <span className="place-id">PlaceId: {item.PlaceId}</span>}
+              {item.Address?.Label && (
+                <span className="label">{item.Address.Label}</span>
+              )}
+              {item.PlaceId && (
+                <span className="place-id">PlaceId: {item.PlaceId}</span>
+              )}
             </li>
           ))}
         </ul>
