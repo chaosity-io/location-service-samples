@@ -8,10 +8,19 @@ import {
 import '@chaosity/address-form/dist/lib/address-form.css'
 import { useState } from 'react'
 
-export function AddressFormDemo() {
+type ApiMode = 'autocomplete' | 'suggest'
+
+interface AddressFormDemoProps {
+  defaultApiMode?: ApiMode
+}
+
+export function AddressFormDemo({
+  defaultApiMode = 'autocomplete',
+}: AddressFormDemoProps) {
   const [submittedData, setSubmittedData] = useState<AddressFormData | null>(
     null,
   )
+  const [apiMode, setApiMode] = useState<ApiMode>(defaultApiMode)
 
   const handleSubmit: SubmitHandler = async (getData) => {
     const data = await getData({ intendedUse: 'SingleUse' })
@@ -22,14 +31,61 @@ export function AddressFormDemo() {
     <div className="min-h-screen bg-gray-50">
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-3xl px-4 py-4">
-          <h1 className="text-lg font-bold text-gray-900">Address Form Demo</h1>
-          <p className="text-sm text-gray-500">
-            Using{' '}
-            <code className="rounded bg-gray-100 px-1">
-              @chaosity/address-form
-            </code>{' '}
-            with autocomplete
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">
+                Address Form Demo
+              </h1>
+              <p className="text-sm text-gray-500">
+                Using{' '}
+                <code className="rounded bg-gray-100 px-1">
+                  @chaosity/address-form
+                </code>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">API Mode:</span>
+              <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+                <button
+                  onClick={() => setApiMode('autocomplete')}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    apiMode === 'autocomplete'
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Core (autocomplete)
+                </button>
+                <button
+                  onClick={() => setApiMode('suggest')}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    apiMode === 'suggest'
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Pro (suggest)
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 rounded-md bg-blue-50 px-3 py-1.5 text-xs text-blue-700">
+            {apiMode === 'autocomplete' ? (
+              <>
+                <strong>Core plan:</strong> Uses{' '}
+                <code>/address/autocomplete</code> +{' '}
+                <code>/address/place</code> +{' '}
+                <code>/address/search/reverse-geocode</code> (for location
+                button)
+              </>
+            ) : (
+              <>
+                <strong>Pro plan:</strong> Uses{' '}
+                <code>/address/suggestion</code> +{' '}
+                <code>/address/place</code> (all address endpoints available)
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -40,6 +96,7 @@ export function AddressFormDemo() {
           </h2>
 
           <AddressForm
+            key={apiMode}
             onSubmit={handleSubmit}
             allowedCountries={['US', 'CA', 'AU', 'GB']}
           >
@@ -48,7 +105,7 @@ export function AddressFormDemo() {
                 name="addressLineOne"
                 label="Address"
                 placeholder="Start typing your address..."
-                apiName="suggest"
+                apiName={apiMode}
                 showCurrentLocation
               />
               <AddressForm.TextField
