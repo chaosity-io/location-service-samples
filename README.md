@@ -27,7 +27,8 @@ Frontend integration examples for web applications.
 
 | Sample | Description | Framework | Features |
 |--------|-------------|-----------|----------|
-| [nextjs-app-router](./web/nextjs-app-router) | ⭐ **Recommended** - Next.js with LocationClientProvider | Next.js 14+ | Server Actions, Maps |
+| [nextjs-address-finder-full](./web/nextjs-address-finder-full) | ⭐ **All-scenario testbed** — address finder + map, MapLibre geocoder, address form, nearby/text search + static map, server-side Bearer/Basic calls; one `.env.local`, every Location Service operation | Next.js 16 | All three SDKs, all 12 operations, both auth modes |
+| [nextjs-app-router](./web/nextjs-app-router) | Next.js with LocationClientProvider | Next.js 14+ | Server Actions, Maps |
 | [vanilla-js-token](./web/vanilla-js-token) | Pure SPA with separate backend for tokens | Vanilla JS | Token caching |
 
 ### Mobile Samples (Coming Soon)

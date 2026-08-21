@@ -80,10 +80,14 @@ export default function AddressFinder() {
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
 
   // Keep languageRef in sync so the map click handler always uses the current language
-  languageRef.current = language
+  useEffect(() => {
+    languageRef.current = language
+  }, [language])
   // Track whether suggestions are open so the re-run effect doesn't re-open them after selection
   const showSuggestionsRef = useRef(false)
-  showSuggestionsRef.current = showSuggestions
+  useEffect(() => {
+    showSuggestionsRef.current = showSuggestions
+  }, [showSuggestions])
 
   // Apply language to map labels whenever language or map instance changes.
   // The hook also registers a 'style.load' listener, so language is reapplied after setStyle.
@@ -116,6 +120,52 @@ export default function AddressFinder() {
       terrainControlRef.current = ctrl
     }
   }
+
+  // mapClickHandler is attached to the map once at init — uses languageRef to avoid
+  // stale closures when the user changes the language dropdown
+  const mapClickHandler = useCallback(
+    async (e: maplibregl.MapMouseEvent) => {
+      if (!client) return
+      const { lng, lat } = e.lngLat
+
+      try {
+        const command = new ReverseGeocodeCommand({
+          QueryPosition: [lng, lat],
+          Language: languageRef.current,
+        })
+        const response: ReverseGeocodeCommandOutput = await client.send(command)
+        const result = response.ResultItems?.[0]
+
+        if (result) {
+          const address: AddressResult = {
+            label: result.Address?.Label,
+            addressLineOne: result.Address?.AddressNumber
+              ? `${result.Address.AddressNumber} ${result.Address.Street || ''}`.trim()
+              : result.Address?.Street,
+            city: result.Address?.Locality,
+            province: result.Address?.Region?.Name,
+            postalCode: result.Address?.PostalCode,
+            country:
+              result.Address?.Country?.Code3 ??
+              result.Address?.Country?.Name ??
+              undefined,
+            position: [lng, lat],
+          }
+
+          setSelectedAddress(address)
+          setQuery(result.Address?.Label || '')
+
+          if (marker.current) marker.current.remove()
+          marker.current = new maplibregl.Marker({ color: '#3b82f6' })
+            .setLngLat([lng, lat])
+            .addTo(map.current!)
+        }
+      } catch (err) {
+        console.error('Map click reverse geocode error:', err)
+      }
+    },
+    [client],
+  )
 
   // Initialize map once when auth is ready — style changes handled separately via setStyle
   useEffect(() => {
@@ -202,15 +252,15 @@ export default function AddressFinder() {
   useEffect(() => {
     const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
 
+    // Raster styles have no colour scheme and Satellite has no political view;
+    // the resets themselves happen in the Map Style onChange, not here.
     if (colorSchemeSelectRef.current) {
       colorSchemeSelectRef.current.disabled = isRasterStyle || loading
-      if (isRasterStyle) setColorScheme('Light')
     }
 
     if (politicalViewSelectRef.current) {
       politicalViewSelectRef.current.disabled =
         mapStyle === 'Satellite' || loading
-      if (mapStyle === 'Satellite') setPoliticalView('')
     }
 
     if (map.current && getToken) {
@@ -280,52 +330,6 @@ export default function AddressFinder() {
     prevFilterCountryRef.current = filterCountry
     prevPoliticalViewRef.current = politicalView
   }, [filterCountry, politicalView, flyToCountryCenter])
-
-  // mapClickHandler is attached to the map once at init — uses languageRef to avoid
-  // stale closures when the user changes the language dropdown
-  const mapClickHandler = useCallback(
-    async (e: maplibregl.MapMouseEvent) => {
-      if (!client) return
-      const { lng, lat } = e.lngLat
-
-      try {
-        const command = new ReverseGeocodeCommand({
-          QueryPosition: [lng, lat],
-          Language: languageRef.current,
-        })
-        const response: ReverseGeocodeCommandOutput = await client.send(command)
-        const result = response.ResultItems?.[0]
-
-        if (result) {
-          const address: AddressResult = {
-            label: result.Address?.Label,
-            addressLineOne: result.Address?.AddressNumber
-              ? `${result.Address.AddressNumber} ${result.Address.Street || ''}`.trim()
-              : result.Address?.Street,
-            city: result.Address?.Locality,
-            province: result.Address?.Region?.Name,
-            postalCode: result.Address?.PostalCode,
-            country:
-              result.Address?.Country?.Code3 ??
-              result.Address?.Country?.Name ??
-              undefined,
-            position: [lng, lat],
-          }
-
-          setSelectedAddress(address)
-          setQuery(result.Address?.Label || '')
-
-          if (marker.current) marker.current.remove()
-          marker.current = new maplibregl.Marker({ color: '#3b82f6' })
-            .setLngLat([lng, lat])
-            .addTo(map.current!)
-        }
-      } catch (err) {
-        console.error('Map click reverse geocode error:', err)
-      }
-    },
-    [client],
-  )
 
   const searchAddress = useCallback(
     (searchQuery: string) => {
@@ -503,12 +507,15 @@ export default function AddressFinder() {
     })
   }, [client, language])
 
-  if (error) {
+  // A provider error (no credentials, token fetch failed) is shown here rather
+  // than leaving the map on "Loading…" forever.
+  const displayError = error ?? clientError
+  if (displayError) {
     return (
       <div className="flex h-150 w-full items-center justify-center rounded-lg bg-red-50">
         <div className="text-center">
           <p className="font-semibold text-red-600">Failed to load</p>
-          <p className="mt-2 text-sm text-red-500">{error}</p>
+          <p className="mt-2 text-sm text-red-500">{displayError}</p>
         </div>
       </div>
     )
@@ -524,7 +531,12 @@ export default function AddressFinder() {
             </label>
             <select
               value={mapStyle}
-              onChange={(e) => setMapStyle(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value
+                setMapStyle(next)
+                if (next === 'Satellite' || next === 'Hybrid') setColorScheme('Light')
+                if (next === 'Satellite') setPoliticalView('')
+              }}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >

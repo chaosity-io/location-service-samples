@@ -1,11 +1,12 @@
 import { LocationProvider } from '@/components/LocationProvider'
+import { Nav } from '@/components/Nav'
 import '@/styles/globals.css'
 
 export const metadata = {
-  title: 'Address Finder & Validator',
+  title: 'Location Service testbed',
   description:
-    'Find and validate addresses with autocomplete and map visualization',
-  icons: { icon: '/favicon.svg', type: 'image/x-icon' },
+    'One Next.js app exercising every Location Service scenario: address finder, map geocoder, address form, nearby/text search, static map, server-side calls',
+  icons: { icon: '/favicon.svg', type: 'image/svg+xml' },
 }
 
 export default function RootLayout({
@@ -15,8 +16,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        <LocationProvider>{children}</LocationProvider>
+      <body className="bg-gray-50">
+        <LocationProvider>
+          <Nav />
+          {children}
+        </LocationProvider>
       </body>
     </html>
   )
