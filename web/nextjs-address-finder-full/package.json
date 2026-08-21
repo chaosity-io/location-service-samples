@@ -1,39 +1,39 @@
 {
   "name": "@chaosity/nextjs-address-finder-full",
-  "version": "1.0.0",
-  "description": "Full-featured Next.js Address Finder with all filters and controls",
+  "version": "2.0.0",
+  "description": "All-scenario testbed for Chaosity Location Service: address finder + map, MapLibre geocoder, address form, nearby/text search + static map, server-side connector",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "start": "next start -p 3001",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
+    "@chaosity/address-form": "^0.2.2",
     "@chaosity/location-client": "^0.1.14",
     "@chaosity/location-client-react": "^0.1.19",
-    "@maplibre/maplibre-gl-geocoder": "^1.9.0",
+    "@maplibre/maplibre-gl-geocoder": "^1.9.4",
     "maplibre-gl": "^5.0.0",
-    "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "next": "^16.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@types/node": "^20.10.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "autoprefixer": "^10.4.20",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^15.0.0",
+    "eslint-config-next": "^16.2.0",
     "postcss": "^8.4.49",
     "prettier": "^3.6.2",
     "prettier-plugin-organize-imports": "^4.2.0",
     "prettier-plugin-tailwindcss": "^0.6.14",
-    "@tailwindcss/postcss": "^4.0.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.8.3"
   }
 }
