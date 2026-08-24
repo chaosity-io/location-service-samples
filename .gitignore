@@ -16,6 +16,27 @@ out/
 .nuxt/
 tsconfig.tsbuildinfo
 
+# Agent rule files written by `next dev`
+#
+# next/dist/server/lib/generate-agent-files.js writes AGENTS.md (and a CLAUDE.md
+# that just @-includes it) into each app the dev server is run in, and re-adds
+# the block if you delete it. There are eight Next.js samples here, so without
+# this rule the tree goes dirty for whichever ones somebody happened to run.
+#
+# They are ignored rather than committed because this repo is published as
+# reference material for customers: the block is tooling for whoever is editing
+# the sample, not part of the sample. If we ever do want agent rules in here,
+# they should be added deliberately to all eight, not left to whoever ran the
+# dev server last.
+#
+# Negated at the repo root so a deliberate, hand-written CLAUDE.md for THIS
+# repo still works — the generator only ever writes them inside an app
+# directory, so the root is unambiguous.
+AGENTS.md
+CLAUDE.md
+!/AGENTS.md
+!/CLAUDE.md
+
 # IDE
 .vscode/
 .idea/
