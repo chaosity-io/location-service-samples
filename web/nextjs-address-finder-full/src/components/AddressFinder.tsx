@@ -22,6 +22,7 @@ import {
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { BuildingsControl } from './BuildingsControl'
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
@@ -219,6 +220,11 @@ export default function AddressFinder() {
           }),
         )
         instance.addControl(new maplibregl.GlobeControl())
+        // 3D buildings OFF by default — they hide the streets and labels
+        // underneath, and this map exists to find an address. The control
+        // toggles layer visibility rather than re-fetching the style, so a
+        // toggle costs nothing (a descriptor fetch is a billable map load).
+        instance.addControl(new BuildingsControl(), 'top-right')
 
         instance.on('click', mapClickHandler)
         instance.getCanvas().style.cursor = 'crosshair'
@@ -534,7 +540,8 @@ export default function AddressFinder() {
               onChange={(e) => {
                 const next = e.target.value
                 setMapStyle(next)
-                if (next === 'Satellite' || next === 'Hybrid') setColorScheme('Light')
+                if (next === 'Satellite' || next === 'Hybrid')
+                  setColorScheme('Light')
                 if (next === 'Satellite') setPoliticalView('')
               }}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"

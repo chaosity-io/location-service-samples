@@ -17,6 +17,7 @@ import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { BuildingsControl } from './BuildingsControl'
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
@@ -106,7 +107,14 @@ export default function MapGeocoder() {
   // Initialize map once
   useEffect(() => {
     // A provider error is rendered directly (displayError below) — no state write here.
-    if (!mapContainer.current || map.current || clientLoading || !client || clientError) return
+    if (
+      !mapContainer.current ||
+      map.current ||
+      clientLoading ||
+      !client ||
+      clientError
+    )
+      return
 
     let cancelled = false
 
@@ -156,6 +164,11 @@ export default function MapGeocoder() {
           new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }),
         )
         instance.addControl(new maplibregl.GlobeControl())
+        // 3D buildings OFF by default — they hide the streets and labels
+        // underneath, and this map exists to find an address. The control
+        // toggles layer visibility rather than re-fetching the style, so a
+        // toggle costs nothing (a descriptor fetch is a billable map load).
+        instance.addControl(new BuildingsControl(), 'top-right')
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate maplibre-gl types from geocoder plugin
         const geoPlaces = new GeoPlaces(client as any, instance as any)
@@ -271,7 +284,8 @@ export default function MapGeocoder() {
                 const next = e.target.value
                 setMapStyle(next)
                 // Raster styles have no colour scheme; Satellite has no political view
-                if (next === 'Satellite' || next === 'Hybrid') setColorScheme('Light')
+                if (next === 'Satellite' || next === 'Hybrid')
+                  setColorScheme('Light')
                 if (next === 'Satellite') setPoliticalView('')
               }}
               className={selectClass}
