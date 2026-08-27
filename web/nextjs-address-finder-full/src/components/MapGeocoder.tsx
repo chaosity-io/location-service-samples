@@ -1,10 +1,13 @@
 'use client'
 
+import type { MapStyle } from '@chaosity/location-client'
 import {
+  COLOR_SCHEMES,
   GeoPlaces,
   GeocodeCommand,
   GeocodeCommandInput,
   GeocodeCommandOutput,
+  MAP_STYLES,
   createTransformRequest,
   fetchMapStyle,
 } from '@chaosity/location-client'
@@ -37,7 +40,7 @@ export default function MapGeocoder() {
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mapStyle, setMapStyle] = useState('Standard')
+  const [mapStyle, setMapStyle] = useState<MapStyle>('Standard')
   const [colorScheme, setColorScheme] = useState('Light')
   const [politicalView, setPoliticalView] = useState('')
   const [filterCountry, setFilterCountry] = useState<string>('')
@@ -281,7 +284,7 @@ export default function MapGeocoder() {
             <select
               value={mapStyle}
               onChange={(e) => {
-                const next = e.target.value
+                const next = e.target.value as MapStyle
                 setMapStyle(next)
                 // Raster styles have no colour scheme; Satellite has no political view
                 if (next === 'Satellite' || next === 'Hybrid')
@@ -291,10 +294,11 @@ export default function MapGeocoder() {
               className={selectClass}
               disabled={loading}
             >
-              <option value="Standard">Standard</option>
-              <option value="Monochrome">Monochrome</option>
-              <option value="Hybrid">Hybrid</option>
-              <option value="Satellite">Satellite</option>
+              {MAP_STYLES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -307,8 +311,11 @@ export default function MapGeocoder() {
               className={selectClass}
               disabled={isRasterStyle || loading}
             >
-              <option value="Light">Light</option>
-              <option value="Dark">Dark</option>
+              {COLOR_SCHEMES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
             </select>
           </div>
           <div>

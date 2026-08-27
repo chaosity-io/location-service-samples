@@ -1,10 +1,68 @@
 'use client'
 
+const RASTER_NOTE =
+  'Satellite and Hybrid reject these, so they are disabled for raster styles'
+
+/**
+ * Assemble the descriptor options from the current control values.
+ *
+ * Pure and module-level so the React Compiler has nothing to memoize and the
+ * component has no ref to touch during render.
+ *
+ * `isRasterStyle` gates the Standard-only parameters: Satellite and Hybrid
+ * reject colour scheme, terrain, buildings and contours, so sending them is a
+ * guaranteed 400 whose message names a style the caller did not choose.
+ *
+ * `traffic` is deliberately NOT gated — it is the control that demonstrates the
+ * API forwarding Amazon's own combination error rather than swallowing it:
+ * Satellite + All answers "Traffic is not supported for style."
+ */
+function buildStyleOptions(
+  c: StyleControls,
+  isRasterStyle: boolean,
+): Record<string, unknown> {
+  return {
+    ...(!isRasterStyle && {
+      colorScheme: c.colorScheme,
+      ...(c.terrain && { terrain: c.terrain }),
+      ...(c.buildings && { buildings: 'Buildings3D' as const }),
+      ...(c.contourDensity && { contourDensity: c.contourDensity }),
+    }),
+    ...(c.traffic && { traffic: c.traffic }),
+    ...(c.travelModes.length && { travelModes: c.travelModes }),
+    ...(c.politicalView && { politicalView: c.politicalView }),
+  }
+}
+
+interface StyleControls {
+  colorScheme: ColorScheme
+  terrain: Terrain | ''
+  buildings: boolean
+  contourDensity: ContourDensity | ''
+  traffic: TrafficMode | ''
+  travelModes: TravelMode[]
+  politicalView: string
+}
+
+import type {
+  ColorScheme,
+  ContourDensity,
+  MapStyle,
+  Terrain,
+  TrafficMode,
+  TravelMode,
+} from '@chaosity/location-client'
 import {
   AutocompleteCommand,
   AutocompleteCommandInput,
   AutocompleteCommandOutput,
   AutocompleteResultItem,
+  // Accepted values, exported as VALUES so these pickers are built from the
+  // same list the types are derived from. The API is case sensitive since
+  // location-service-api#89, so taking them from here is what keeps the case
+  // right — a hand-typed 'standard' is now a 400, not a working map.
+  COLOR_SCHEMES,
+  CONTOUR_DENSITIES,
   createTransformRequest,
   fetchMapStyle,
   GeocodeCommand,
@@ -12,8 +70,12 @@ import {
   GeocodeCommandOutput,
   GetPlaceCommand,
   GetPlaceCommandOutput,
+  MAP_STYLES,
   ReverseGeocodeCommand,
   ReverseGeocodeCommandOutput,
+  TERRAINS,
+  TRAFFIC_MODES,
+  TRAVEL_MODES,
 } from '@chaosity/location-client'
 import {
   useLocationClient,
@@ -73,9 +135,57 @@ export default function AddressFinder() {
   const [searchMode, setSearchMode] = useState<'autocomplete' | 'geocode'>(
     'autocomplete',
   )
-  const [mapStyle, setMapStyle] = useState('Standard')
-  const [colorScheme, setColorScheme] = useState('Light')
+  const [mapStyle, setMapStyle] = useState<MapStyle>('Standard')
+  const [colorScheme, setColorScheme] = useState<ColorScheme>('Light')
   const [politicalView, setPoliticalView] = useState('')
+  // Previously hard-coded to Terrain3D / Buildings3D / Medium with no way to
+  // change them, so three of the descriptor's parameters were never exercised.
+  const [terrain, setTerrain] = useState<Terrain | ''>('Terrain3D')
+  const [buildings, setBuildings] = useState(true)
+  const [contourDensity, setContourDensity] = useState<ContourDensity | ''>(
+    'Medium',
+  )
+  // Absent entirely before this. `traffic` is the one that shows the API
+  // forwarding Amazon's own combination error: pick Satellite and All together
+  // and the response is "Traffic is not supported for style."
+  const [traffic, setTraffic] = useState<TrafficMode | ''>('')
+  const [travelModes, setTravelModes] = useState<TravelMode[]>([])
+
+  // Satellite and Hybrid reject the Standard-only parameters, so the controls
+  // are disabled rather than left to produce a guaranteed 400.
+  const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
+
+  // Same shape as languageRef below: the map-INIT effect reads the current
+  // controls without listing them as dependencies, which would tear the map
+  // down and rebuild it on every change instead of calling setStyle.
+  const styleControlsRef = useRef<StyleControls>({
+    colorScheme,
+    terrain,
+    buildings,
+    contourDensity,
+    traffic,
+    travelModes,
+    politicalView,
+  })
+  useEffect(() => {
+    styleControlsRef.current = {
+      colorScheme,
+      terrain,
+      buildings,
+      contourDensity,
+      traffic,
+      travelModes,
+      politicalView,
+    }
+  }, [
+    colorScheme,
+    terrain,
+    buildings,
+    contourDensity,
+    traffic,
+    travelModes,
+    politicalView,
+  ])
   const [filterCountry, setFilterCountry] = useState<string>('')
   const [language, setLanguage] = useState<string>('en')
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
@@ -183,14 +293,8 @@ export default function AddressFinder() {
       try {
         const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
         const style = await fetchMapStyle(API_URL, mapStyle, getToken, {
-          colorScheme: colorScheme as 'Light' | 'Dark',
-          ...(!isRasterStyle && {
-            terrain: 'Terrain3D' as const,
-            buildings: 'Buildings3D' as const,
-            contourDensity: 'Medium' as const,
-          }),
+          ...buildStyleOptions(styleControlsRef.current, isRasterStyle),
           language: languageRef.current,
-          ...(politicalView && { politicalView }),
         })
 
         const instance = new maplibregl.Map({
@@ -272,14 +376,8 @@ export default function AddressFinder() {
     if (map.current && getToken) {
       const currentMap = map.current
       fetchMapStyle(API_URL, mapStyle, getToken, {
-        colorScheme: colorScheme as 'Light' | 'Dark',
-        ...(!isRasterStyle && {
-          terrain: 'Terrain3D' as const,
-          buildings: 'Buildings3D' as const,
-          contourDensity: 'Medium' as const,
-        }),
+        ...buildStyleOptions(styleControlsRef.current, isRasterStyle),
         language: languageRef.current,
-        ...(politicalView && { politicalView }),
       })
         .then((style) => {
           currentMap.setStyle(style)
@@ -287,7 +385,18 @@ export default function AddressFinder() {
         })
         .catch((err) => console.error('[style update]', err))
     }
-  }, [mapStyle, colorScheme, politicalView, loading, getToken])
+  }, [
+    mapStyle,
+    colorScheme,
+    politicalView,
+    terrain,
+    buildings,
+    contourDensity,
+    traffic,
+    travelModes,
+    loading,
+    getToken,
+  ])
 
   const flyToCountryCenter = useCallback(
     async (countryCode: string) => {
@@ -538,7 +647,10 @@ export default function AddressFinder() {
             <select
               value={mapStyle}
               onChange={(e) => {
-                const next = e.target.value
+                // `e.target.value` is string; the options are rendered from
+                // MAP_STYLES, so the cast is safe and the compiler now insists
+                // on it rather than letting a typo through.
+                const next = e.target.value as MapStyle
                 setMapStyle(next)
                 if (next === 'Satellite' || next === 'Hybrid')
                   setColorScheme('Light')
@@ -547,10 +659,11 @@ export default function AddressFinder() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >
-              <option value="Standard">Standard</option>
-              <option value="Monochrome">Monochrome</option>
-              <option value="Hybrid">Hybrid</option>
-              <option value="Satellite">Satellite</option>
+              {MAP_STYLES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -561,11 +674,14 @@ export default function AddressFinder() {
             <select
               ref={colorSchemeSelectRef}
               value={colorScheme}
-              onChange={(e) => setColorScheme(e.target.value)}
+              onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
             >
-              <option value="Light">Light</option>
-              <option value="Dark">Dark</option>
+              {COLOR_SCHEMES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -590,6 +706,113 @@ export default function AddressFinder() {
               <option value="SYR">Syria</option>
               <option value="TUR">Turkey</option>
             </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Terrain
+            </label>
+            <select
+              value={terrain}
+              onChange={(e) => setTerrain(e.target.value as Terrain | '')}
+              disabled={isRasterStyle}
+              title={isRasterStyle ? RASTER_NOTE : undefined}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
+            >
+              <option value="">None</option>
+              {TERRAINS.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Contour density
+            </label>
+            <select
+              value={contourDensity}
+              onChange={(e) =>
+                setContourDensity(e.target.value as ContourDensity | '')
+              }
+              disabled={isRasterStyle}
+              title={isRasterStyle ? RASTER_NOTE : undefined}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
+            >
+              <option value="">None</option>
+              {CONTOUR_DENSITIES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Traffic
+            </label>
+            <select
+              value={traffic}
+              onChange={(e) => setTraffic(e.target.value as TrafficMode | '')}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            >
+              <option value="">None</option>
+              {TRAFFIC_MODES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            {/* Deliberately NOT disabled for raster styles: this is the control
+                that shows the API forwarding Amazon's own combination error. */}
+            <p className="mt-1 text-xs text-gray-500">
+              Try Satellite + All to see Amazon&apos;s own error forwarded.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Travel modes
+            </label>
+            <div className="flex gap-4 py-2">
+              {TRAVEL_MODES.map((mode) => (
+                <label key={mode} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={travelModes.includes(mode)}
+                    onChange={(e) =>
+                      setTravelModes((prev) =>
+                        e.target.checked
+                          ? [...prev, mode]
+                          : prev.filter((m) => m !== mode),
+                      )
+                    }
+                  />
+                  {mode}
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Sent comma-separated; the API checks each entry.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              3D buildings
+            </label>
+            <label className="flex items-center gap-2 py-2 text-sm">
+              <input
+                type="checkbox"
+                checked={buildings}
+                disabled={isRasterStyle}
+                onChange={(e) => setBuildings(e.target.checked)}
+              />
+              Buildings3D
+            </label>
           </div>
         </div>
 
