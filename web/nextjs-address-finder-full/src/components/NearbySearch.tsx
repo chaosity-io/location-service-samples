@@ -9,6 +9,7 @@ import {
   SearchTextCommandOutput,
   createTransformRequest,
   fetchMapStyle,
+  fetchStaticMap,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import maplibregl from 'maplibre-gl'
@@ -79,7 +80,14 @@ export default function NearbySearch() {
   // Map init (once the provider has a token)
   useEffect(() => {
     // A provider error is rendered directly (displayError below) — no state write here.
-    if (!mapContainer.current || map.current || clientLoading || !client || clientError) return
+    if (
+      !mapContainer.current ||
+      map.current ||
+      clientLoading ||
+      !client ||
+      clientError
+    )
+      return
     let cancelled = false
     ;(async () => {
       try {
@@ -109,7 +117,9 @@ export default function NearbySearch() {
         placeQueryMarker(positionRef.current)
         setMapReady(true)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to initialize map')
+        setError(
+          err instanceof Error ? err.message : 'Failed to initialize map',
+        )
       }
     })()
     return () => {
@@ -183,45 +193,44 @@ export default function NearbySearch() {
           )
         }
       }
-      setTiming(`${Math.round(performance.now() - started)} ms · ${items.length} result(s)`)
+      setTiming(
+        `${Math.round(performance.now() - started)} ms · ${items.length} result(s)`,
+      )
     } catch (err) {
       const e = err as { message?: string; code?: string; statusCode?: number }
-      setError(`${e.code ?? 'Error'}${e.statusCode ? ` (${e.statusCode})` : ''}: ${e.message ?? String(err)}`)
+      setError(
+        `${e.code ?? 'Error'}${e.statusCode ? ` (${e.statusCode})` : ''}: ${e.message ?? String(err)}`,
+      )
       setRaw(JSON.stringify(err, Object.getOwnPropertyNames(err as object), 2))
     } finally {
       setBusy(false)
     }
   }, [client, mode, position, radius, maxResults, category, queryText])
 
-  const fetchStaticMap = useCallback(async () => {
+  const loadStaticMap = useCallback(async () => {
     setStaticError(null)
-    const token = getToken()
-    if (!token) {
+    if (!getToken()) {
       setStaticError('No token yet')
       return
     }
-    const params = new URLSearchParams({
-      width: '640',
-      height: '400',
-      center: `${position[0]},${position[1]}`,
-      zoom: '14',
-      style: 'Standard',
-    })
     try {
-      // The file name is `map` or `map@2x` — nothing else, and no extension:
-      // the output is always PNG (the API says so in its 400 if you try).
-      // `Accept` is required too: a bare fetch sends `*/*`, which the API
-      // refuses for binary routes rather than hand back base64 as an image
-      // (api#92). Standard renders PNG; Satellite/Hybrid would be image/jpeg.
-      const res = await fetch(`${API_URL}/maps/static/map?${params}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'image/png' },
-      })
-      if (!res.ok) {
-        const body = await res.text()
-        setStaticError(`${res.status}: ${body.slice(0, 200)}`)
-        return
-      }
-      const blob = await res.blob()
+      // This used to be a hand-rolled fetch with the URL built inline and
+      // `Accept: image/png` set by hand, plus a comment explaining why the
+      // header was needed at all. All of that now lives in the client library
+      // (location-service-client#25): it picks the Accept from the style —
+      // Standard is PNG, Satellite is JPEG and is the DEFAULT — and throws the
+      // API's own message rather than a bare status code.
+      const blob = await fetchStaticMap(
+        API_URL,
+        {
+          width: 640,
+          height: 400,
+          center: position,
+          zoom: 14,
+          style: 'Standard',
+        },
+        getToken,
+      )
       setStaticUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev)
         return URL.createObjectURL(blob)
@@ -246,7 +255,9 @@ export default function NearbySearch() {
                 type="button"
                 onClick={() => setMode(m)}
                 className={`rounded-md px-3 py-1 text-xs font-medium ${
-                  mode === m ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
+                  mode === m
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {m === 'nearby' ? 'SearchNearby' : 'SearchText'}
@@ -254,7 +265,8 @@ export default function NearbySearch() {
             ))}
           </div>
           <span className="text-xs text-gray-500">
-            position {position[1].toFixed(5)}, {position[0].toFixed(5)} (click the map to move it)
+            position {position[1].toFixed(5)}, {position[0].toFixed(5)} (click
+            the map to move it)
           </span>
         </div>
 
@@ -262,7 +274,9 @@ export default function NearbySearch() {
           {mode === 'nearby' ? (
             <>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Radius (m)</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Radius (m)
+                </label>
                 <input
                   type="number"
                   min={50}
@@ -273,8 +287,14 @@ export default function NearbySearch() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Category filter</label>
-                <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Category filter
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className={inputClass}
+                >
                   {CATEGORIES.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.label}
@@ -285,7 +305,9 @@ export default function NearbySearch() {
             </>
           ) : (
             <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Query text</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Query text
+              </label>
               <input
                 type="text"
                 value={queryText}
@@ -296,7 +318,9 @@ export default function NearbySearch() {
             </div>
           )}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Max results</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Max results
+            </label>
             <input
               type="number"
               min={1}
@@ -317,7 +341,7 @@ export default function NearbySearch() {
             </button>
             <button
               type="button"
-              onClick={fetchStaticMap}
+              onClick={loadStaticMap}
               disabled={!mapReady}
               className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
@@ -328,7 +352,9 @@ export default function NearbySearch() {
 
         {timing && <p className="mt-2 text-xs text-gray-500">{timing}</p>}
         {displayError && (
-          <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{displayError}</p>
+          <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            {displayError}
+          </p>
         )}
       </div>
 
@@ -365,12 +391,18 @@ export default function NearbySearch() {
 
       {(staticUrl || staticError) && (
         <div className="rounded-lg bg-white p-4 shadow">
-          <h3 className="mb-2 text-sm font-semibold text-gray-900">Static map</h3>
+          <h3 className="mb-2 text-sm font-semibold text-gray-900">
+            Static map
+          </h3>
           {staticError ? (
             <p className="text-sm text-red-700">{staticError}</p>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element -- blob URL from an authenticated fetch
-            <img src={staticUrl!} alt="Static map" className="max-w-full rounded-md border" />
+            <img
+              src={staticUrl!}
+              alt="Static map"
+              className="max-w-full rounded-md border"
+            />
           )}
         </div>
       )}
@@ -380,7 +412,9 @@ export default function NearbySearch() {
           <summary className="cursor-pointer text-sm font-semibold text-gray-900">
             Raw response
           </summary>
-          <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-gray-50 p-3 text-xs">{raw}</pre>
+          <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-gray-50 p-3 text-xs">
+            {raw}
+          </pre>
         </details>
       )}
     </div>
