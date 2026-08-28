@@ -187,6 +187,13 @@ export default function MapGeocoder() {
           flyTo: { speed: 1.5 },
         })
 
+        // Without a listener the control's EventEmitter THROWS on `error`, and
+        // the console shows "Unhandled error. (undefined)" with the real
+        // exception discarded. This is a testbed: the point is to see it.
+        geocoder.on('error', (e: { error?: unknown }) =>
+          console.error('[geocoder]', e.error ?? e),
+        )
+
         geocoderRef.current = geocoder
         instance.addControl(geocoder, 'top-left')
 

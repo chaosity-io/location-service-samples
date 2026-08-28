@@ -208,8 +208,13 @@ export default function NearbySearch() {
       style: 'Standard',
     })
     try {
-      const res = await fetch(`${API_URL}/maps/static/testbed.png?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      // The file name is `map` or `map@2x` — nothing else, and no extension:
+      // the output is always PNG (the API says so in its 400 if you try).
+      // `Accept` is required too: a bare fetch sends `*/*`, which the API
+      // refuses for binary routes rather than hand back base64 as an image
+      // (api#92). Standard renders PNG; Satellite/Hybrid would be image/jpeg.
+      const res = await fetch(`${API_URL}/maps/static/map?${params}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'image/png' },
       })
       if (!res.ok) {
         const body = await res.text()
