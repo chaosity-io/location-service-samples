@@ -1,5 +1,6 @@
 'use client'
 
+import { useCountry } from '@/lib/settings/country'
 import {
   AddressForm,
   type AddressFormData,
@@ -19,6 +20,17 @@ export function AddressFormDemo({
     null,
   )
   const [apiMode, setApiMode] = useState<ApiMode>(defaultApiMode)
+  const country = useCountry()
+
+  // The form's country list follows the global selection: a scoped
+  // application offers its scope with the selected country first (the form
+  // defaults to the first entry); an unscoped one with a country picked is
+  // narrowed to it; worldwide leaves the form's own full list.
+  const allowedCountries = country.scoped
+    ? [country.code, ...country.scope.filter((c) => c !== country.code)]
+    : country.code
+      ? [country.code]
+      : undefined
 
   const handleSubmit: SubmitHandler = async (getData) => {
     // SingleUse: no extra GetPlace on submit. The API never forwards
@@ -48,14 +60,20 @@ export function AddressFormDemo({
           {apiMode === 'autocomplete' ? (
             <>
               <strong>Core mode:</strong> <code>/address/autocomplete</code> +{' '}
-              <code>/address/place</code> + <code>/address/search/reverse-geocode</code>
+              <code>/address/place</code> +{' '}
+              <code>/address/search/reverse-geocode</code>
             </>
           ) : (
             <>
               <strong>Pro mode:</strong> <code>/address/suggestion</code> +{' '}
-              <code>/address/place</code> + <code>/address/search/reverse-geocode</code>
+              <code>/address/place</code> +{' '}
+              <code>/address/search/reverse-geocode</code>
             </>
           )}
+          <div className="mt-1 text-xs text-gray-500">
+            Countries offered:{' '}
+            {allowedCountries ? allowedCountries.join(', ') : 'all'}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500">API mode:</span>
@@ -72,9 +90,9 @@ export function AddressFormDemo({
         </h2>
 
         <AddressForm
-          key={apiMode}
+          key={`${apiMode}:${allowedCountries?.join(',') ?? 'all'}`}
           onSubmit={handleSubmit}
-          allowedCountries={['AU', 'NZ', 'GB', 'US', 'CA']}
+          allowedCountries={allowedCountries}
         >
           <div className="space-y-3">
             <AddressForm.AddressField
@@ -94,7 +112,10 @@ export function AddressFormDemo({
               <AddressForm.TextField name="province" label="State / Province" />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <AddressForm.TextField name="postalCode" label="Postal / Zip Code" />
+              <AddressForm.TextField
+                name="postalCode"
+                label="Postal / Zip Code"
+              />
               <AddressForm.CountryField name="country" label="Country" />
             </div>
           </div>

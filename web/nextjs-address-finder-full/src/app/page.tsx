@@ -10,11 +10,11 @@ export default function Home() {
           </h1>
           <p className="text-gray-600">
             Direct SDK commands against the API: <code>Autocomplete</code> or{' '}
-            <code>Geocode</code> while typing (biased to the map centre, optional
-            country filter), <code>GetPlace</code> on select, <code>ReverseGeocode</code>{' '}
-            on map click and for &ldquo;use my location&rdquo;; the map itself loads the
-            style descriptor, tiles, glyphs and sprites through the API with a bearer
-            token per request.
+            <code>Geocode</code> while typing — biased to the map centre,
+            filtered to the country selected in the bar above, in the selected
+            language — <code>GetPlace</code> on select,{' '}
+            <code>ReverseGeocode</code> on map click and for &ldquo;use my
+            location&rdquo;.
           </p>
         </div>
 

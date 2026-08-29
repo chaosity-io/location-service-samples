@@ -1,420 +1,130 @@
 'use client'
 
-import type { MapStyle } from '@chaosity/location-client'
-import {
-  COLOR_SCHEMES,
-  GeoPlaces,
-  GeocodeCommand,
-  GeocodeCommandInput,
-  GeocodeCommandOutput,
-  MAP_STYLES,
-  createTransformRequest,
-  fetchMapStyle,
-} from '@chaosity/location-client'
-import {
-  useLocationClient,
-  useMapLanguage,
-} from '@chaosity/location-client-react'
+import { describeError } from '@/lib/address'
+import { useTestbedMap } from '@/lib/map/useTestbedMap'
+import { useCountry } from '@/lib/settings/country'
+import { useMapSettings } from '@/lib/settings/map-settings'
+import { GeoPlaces } from '@chaosity/location-client'
+import { useLocationClient } from '@chaosity/location-client-react'
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
 import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { BuildingsControl } from './BuildingsControl'
+import { useEffect, useRef, useState } from 'react'
 
-const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
-
+/**
+ * The MapLibre geocoder control on the SDK's `GeoPlaces` adapter:
+ * Suggest per keystroke (proximity = map centre) → GetPlace on select, and a
+ * forward Geocode on Enter. Country and language follow the global bar.
+ */
 export default function MapGeocoder() {
-  const mapContainer = useRef<HTMLDivElement>(null)
-  const map = useRef<maplibregl.Map | null>(null)
+  const container = useRef<HTMLDivElement>(null)
   const geocoderRef = useRef<MaplibreGeocoder | null>(null)
-  const terrainControlRef = useRef<maplibregl.TerrainControl | null>(null)
-  const prevFilterCountryRef = useRef<string>('')
-  const prevPoliticalViewRef = useRef<string>('')
-  const {
-    client,
-    getToken,
-    loading: clientLoading,
-    error: clientError,
-  } = useLocationClient()
-  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { client } = useLocationClient()
+  const [{ language }] = useMapSettings()
+  const { code: country } = useCountry()
+  const { map, ready, error: mapError } = useTestbedMap(container)
+
   const [error, setError] = useState<string | null>(null)
-  const [mapStyle, setMapStyle] = useState<MapStyle>('Standard')
-  const [colorScheme, setColorScheme] = useState('Light')
-  const [politicalView, setPoliticalView] = useState('')
-  const [filterCountry, setFilterCountry] = useState<string>('')
-  const [language, setLanguage] = useState<string>('en')
-  const languageRef = useRef(language)
+  const [result, setResult] = useState<string>('')
+
+  // The control lives as long as the map does.
   useEffect(() => {
-    languageRef.current = language
-  }, [language])
-
-  // Client-side language switching — zero API calls
-  useMapLanguage(mapInstance, language)
-
-  const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
-
-  const flyToCountryCenter = useCallback(
-    async (countryCode: string) => {
-      if (clientLoading || !client) return
-      if (clientError) {
-        setError(clientError)
-        return
-      }
-
-      const commandInput: GeocodeCommandInput = {
-        QueryComponents: { Country: countryCode },
-      }
-      const response: GeocodeCommandOutput = await client.send(
-        new GeocodeCommand(commandInput),
-      )
-
-      const countryGeocode = response.ResultItems?.find((item) =>
-        item.PlaceType?.includes('Country'),
-      )
-      if (countryGeocode) {
-        map.current?.flyTo({
-          center: countryGeocode.Position as [number, number],
-          speed: 1.2,
-          curve: 1.4,
-        })
-        if (countryGeocode.MapView) {
-          map.current?.fitBounds(
-            countryGeocode.MapView as [number, number, number, number],
-            { padding: 20 },
-          )
-        }
-      }
-    },
-    [clientLoading, client, clientError],
-  )
-
-  // Sync TerrainControl after each style load
-  const syncTerrainControl = useCallback((mapInst: maplibregl.Map) => {
-    if (terrainControlRef.current) {
-      try {
-        mapInst.removeControl(terrainControlRef.current)
-      } catch {
-        /* noop */
-      }
-      terrainControlRef.current = null
-    }
-    if (mapInst.getSource('amazon')) {
-      const tc = new maplibregl.TerrainControl({ source: 'amazon' })
-      mapInst.addControl(tc, 'top-right')
-      terrainControlRef.current = tc
-    }
-  }, [])
-
-  // Initialize map once
-  useEffect(() => {
-    // A provider error is rendered directly (displayError below) — no state write here.
-    if (
-      !mapContainer.current ||
-      map.current ||
-      clientLoading ||
-      !client ||
-      clientError
-    )
-      return
-
-    let cancelled = false
-
-    ;(async () => {
-      try {
-        const style = await fetchMapStyle(API_URL, mapStyle, getToken, {
-          colorScheme: colorScheme as 'Light' | 'Dark',
-          ...(!isRasterStyle && {
-            terrain: 'Terrain3D' as const,
-            buildings: 'Buildings3D' as const,
-          }),
-          ...(politicalView && { politicalView }),
-          language: languageRef.current,
-        })
-
-        if (cancelled) return
-
-        const instance = new maplibregl.Map({
-          container: mapContainer.current!,
-          style,
-          center: [151.2093, -33.8688],
-          zoom: 10,
-          minZoom: 3,
-          maxPitch: 85,
-          transformRequest: createTransformRequest(
-            API_URL,
-            getToken,
-          ) as maplibregl.RequestTransformFunction,
-        })
-
-        instance.addControl(
-          new maplibregl.NavigationControl({
-            showCompass: true,
-            showZoom: true,
-            visualizePitch: true,
-          }),
-          'top-right',
-        )
-        instance.addControl(
-          new maplibregl.GeolocateControl({
-            showUserLocation: true,
-            trackUserLocation: true,
-            positionOptions: { enableHighAccuracy: true },
-          }),
-        )
-        instance.addControl(
-          new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }),
-        )
-        instance.addControl(new maplibregl.GlobeControl())
-        // 3D buildings OFF by default — they hide the streets and labels
-        // underneath, and this map exists to find an address. The control
-        // toggles layer visibility rather than re-fetching the style, so a
-        // toggle costs nothing (a descriptor fetch is a billable map load).
-        instance.addControl(new BuildingsControl(), 'top-right')
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate maplibre-gl types from geocoder plugin
-        const geoPlaces = new GeoPlaces(client as any, instance as any)
-        const geocoder = new MaplibreGeocoder(geoPlaces, {
-          maplibregl: maplibregl,
-          placeholder: 'Search for places',
-          showResultsWhileTyping: true,
-          minLength: 3,
-          marker: true,
-          popup: true,
-          trackProximity: true,
-          limit: 5,
-          flyTo: { speed: 1.5 },
-        })
-
-        // Without a listener the control's EventEmitter THROWS on `error`, and
-        // the console shows "Unhandled error. (undefined)" with the real
-        // exception discarded. This is a testbed: the point is to see it.
-        geocoder.on('error', (e: { error?: unknown }) =>
-          console.error('[geocoder]', e.error ?? e),
-        )
-
-        geocoderRef.current = geocoder
-        instance.addControl(geocoder, 'top-left')
-
-        instance.on('style.load', () => {
-          instance.setProjection({ type: 'globe' })
-          syncTerrainControl(instance)
-        })
-
-        map.current = instance
-        setMapInstance(instance)
-        setLoading(false)
-      } catch (err) {
-        console.error('Map initialization error:', err)
-        setError(
-          err instanceof Error ? err.message : 'Failed to initialize map',
-        )
-        setLoading(false)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-      if (map.current) {
-        map.current.remove()
-        map.current = null
-        setMapInstance(null)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientLoading, client, clientError])
-
-  // Style update effect — uses languageRef to avoid triggering on language-only changes
-  useEffect(() => {
-    const currentMap = map.current
-    if (!currentMap || loading) return
-
-    fetchMapStyle(API_URL, mapStyle, getToken, {
-      ...(!isRasterStyle && { colorScheme: colorScheme as 'Light' | 'Dark' }),
-      ...(!isRasterStyle && {
-        terrain: 'Terrain3D' as const,
-        buildings: 'Buildings3D' as const,
-      }),
-      ...(politicalView && { politicalView }),
-      language: languageRef.current,
+    if (!map || !client) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate maplibre-gl types from the geocoder plugin
+    const geoPlaces = new GeoPlaces(client as any, map as any)
+    const geocoder = new MaplibreGeocoder(geoPlaces, {
+      maplibregl,
+      placeholder: 'Search for places',
+      showResultsWhileTyping: true,
+      minLength: 3,
+      marker: true,
+      popup: true,
+      trackProximity: true,
+      limit: 5,
+      flyTo: { speed: 1.5 },
     })
-      .then((style) => currentMap.setStyle(style))
-      .catch((err) => console.error('[style update]', err))
-  }, [mapStyle, colorScheme, politicalView, loading, getToken, isRasterStyle])
-
-  // Country filter and language for geocoder
-  useEffect(() => {
-    const filterCountryChanged = prevFilterCountryRef.current !== filterCountry
-    const politicalViewChanged = prevPoliticalViewRef.current !== politicalView
-
-    if (filterCountryChanged && filterCountry) {
-      flyToCountryCenter(filterCountry)
-      if (geocoderRef.current) {
-        geocoderRef.current.setCountries(filterCountry)
+    // Without a listener the control's EventEmitter THROWS on `error` and the
+    // console shows "Unhandled error. (undefined)" with the cause discarded.
+    geocoder.on('error', (e: { error?: unknown }) => {
+      setError(describeError(e.error ?? e, 'Geocoder error'))
+    })
+    // Two paths deliver a selection. Picking a SUGGESTION makes the control
+    // call the adapter's searchByPlaceId and emit `results` carrying `place`
+    // (that is also what draws the marker and flies the map); `result` fires
+    // only for a typed forward geocode chosen from the list. Listen to both.
+    geocoder.on('results', (e) => {
+      // `place` is what the control attaches on the searchByPlaceId path; the
+      // plugin's event type does not declare it, and the adapter hands it
+      // over as a one-element array.
+      const raw = (e as { place?: unknown }).place
+      const place = Array.isArray(raw) ? raw[0] : raw
+      if (!place) return
+      setError(null)
+      setResult(JSON.stringify(place, null, 2))
+    })
+    geocoder.on('result', (e: { result?: unknown }) => {
+      setError(null)
+      setResult(JSON.stringify(e.result ?? e, null, 2))
+    })
+    geocoder.on('clear', () => setResult(''))
+    map.addControl(geocoder, 'top-left')
+    geocoderRef.current = geocoder
+    // QA handle, dev only (see `__testbedMap` in useTestbedMap).
+    if (process.env.NODE_ENV !== 'production') {
+      ;(
+        window as unknown as { __testbedGeocoder?: MaplibreGeocoder }
+      ).__testbedGeocoder = geocoder
+    }
+    return () => {
+      geocoderRef.current = null
+      try {
+        map.removeControl(geocoder)
+      } catch {
+        /* map already removed */
       }
-    } else if (politicalViewChanged && politicalView) {
-      flyToCountryCenter(politicalView)
     }
+  }, [map, client])
 
-    prevFilterCountryRef.current = filterCountry
-    prevPoliticalViewRef.current = politicalView
+  useEffect(() => {
+    geocoderRef.current?.setCountries(country)
+  }, [country, map])
 
-    if (geocoderRef.current && language) {
-      geocoderRef.current.setLanguage(language)
-    }
-  }, [filterCountry, politicalView, language, flyToCountryCenter])
+  useEffect(() => {
+    geocoderRef.current?.setLanguage(language)
+  }, [language, map])
 
-  const displayError = error ?? clientError
-  if (displayError) {
-    return (
-      <div className="flex h-150 w-full items-center justify-center rounded-lg bg-red-50">
-        <div className="text-center">
-          <p className="font-semibold text-red-600">Failed to load map</p>
-          <p className="mt-2 text-sm text-red-500">{displayError}</p>
-        </div>
-      </div>
-    )
-  }
-
-  const selectClass =
-    'w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100'
+  const displayError = error ?? mapError
 
   return (
     <div className="space-y-4">
-      <div className="space-y-4 rounded-lg bg-white p-4 shadow">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Map Style
-            </label>
-            <select
-              value={mapStyle}
-              onChange={(e) => {
-                const next = e.target.value as MapStyle
-                setMapStyle(next)
-                // Raster styles have no colour scheme; Satellite has no political view
-                if (next === 'Satellite' || next === 'Hybrid')
-                  setColorScheme('Light')
-                if (next === 'Satellite') setPoliticalView('')
-              }}
-              className={selectClass}
-              disabled={loading}
-            >
-              {MAP_STYLES.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Color Scheme
-            </label>
-            <select
-              value={colorScheme}
-              onChange={(e) => setColorScheme(e.target.value)}
-              className={selectClass}
-              disabled={isRasterStyle || loading}
-            >
-              {COLOR_SCHEMES.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Political View
-            </label>
-            <select
-              value={politicalView}
-              onChange={(e) => setPoliticalView(e.target.value)}
-              className={selectClass}
-              disabled={mapStyle === 'Satellite' || loading}
-            >
-              <option value="">Default</option>
-              <option value="IND">India</option>
-              <option value="ARG">Argentina</option>
-              <option value="EGY">Egypt</option>
-              <option value="MAR">Morocco</option>
-              <option value="RUS">Russia</option>
-              <option value="SDN">Sudan</option>
-              <option value="SRB">Serbia</option>
-              <option value="SYR">Syria</option>
-              <option value="TUR">Turkey</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Country Filter
-            </label>
-            <select
-              value={filterCountry}
-              onChange={(e) => setFilterCountry(e.target.value)}
-              className={selectClass}
-              disabled={loading}
-            >
-              <option value="">All Countries</option>
-              <option value="AU">Australia</option>
-              <option value="NZ">New Zealand</option>
-              <option value="GB">UK</option>
-              <option value="CA">Canada</option>
-              <option value="US">USA</option>
-              <option value="FR">France</option>
-              <option value="DE">Germany</option>
-              <option value="IN">India</option>
-              <option value="BR">Brazil</option>
-              <option value="MX">Mexico</option>
-              <option value="IT">Italy</option>
-              <option value="ES">Spain</option>
-              <option value="JP">Japan</option>
-              <option value="KR">South Korea</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Language
-            </label>
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              className={selectClass}
-              disabled={loading}
-            >
-              <option value="en">English</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="ja">Japanese</option>
-              <option value="zh">Chinese</option>
-              <option value="ar">Arabic</option>
-              <option value="pt">Portuguese</option>
-              <option value="ru">Russian</option>
-              <option value="hi">Hindi</option>
-              <option value="ko">Korean</option>
-              <option value="it">Italian</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
+      <p className="text-xs text-gray-500">
+        Suggest with proximity = map centre
+        {country ? `, countries = ${country}` : ''}, language {language}. Pick a
+        suggestion for GetPlace; press Enter for a forward Geocode.
+      </p>
+      {displayError && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {displayError}
+        </p>
+      )}
       <div className="relative h-150 w-full overflow-hidden rounded-lg bg-white shadow-lg">
-        {loading && (
+        {!ready && !displayError && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100">
-            <div className="text-center">
-              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading map...</p>
-            </div>
+            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600" />
           </div>
         )}
-        <div ref={mapContainer} className="h-full w-full" />
+        <div ref={container} className="h-full w-full" />
       </div>
+      {result && (
+        <details className="rounded-lg bg-white p-4 shadow" open>
+          <summary className="cursor-pointer text-sm font-semibold text-gray-900">
+            Selected place (what the adapter handed the control)
+          </summary>
+          <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-gray-50 p-3 text-xs">
+            {result}
+          </pre>
+        </details>
+      )}
     </div>
   )
 }
