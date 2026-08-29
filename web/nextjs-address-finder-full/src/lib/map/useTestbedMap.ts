@@ -4,13 +4,15 @@ import {
   createTransformRequest,
   fetchMapStyle,
 } from '@chaosity/location-client'
-import { useLocationClient } from '@chaosity/location-client-react'
+import {
+  useLocationClient,
+  useMapLanguage,
+} from '@chaosity/location-client-react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 import { useCountry } from '../settings/country'
 import { descriptorOptions, useMapSettings } from '../settings/map-settings'
-import { applyLanguageToMap, applyLanguageToStyle } from './language'
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
@@ -47,8 +49,10 @@ function explain(err: unknown, fallback: string): string {
  *   open map — a language change does not, it rewrites labels in place).
  * - The initial view is the selected country's bounds; changing the country
  *   refits every open map.
- * - Language is applied with the corrected rewrite in `./language`, so house
- *   numbers and road shields survive it (location-service-client#28).
+ * - Language goes into the descriptor fetch (no flash on first paint) and to
+ *   `useMapLanguage` for in-place changes. Both need location-client ≥ 0.5.1:
+ *   earlier versions rewrote every symbol layer and blanked house numbers and
+ *   road shields (location-service-client#28).
  *
  * `map.current`-style init code used to be copied into each component with
  * different defaults — which is exactly how one page ended up over Kansas at
@@ -125,10 +129,10 @@ export function useTestbedMap(
       try {
         const s = settingsRef.current
         const key = `${s.style}|${JSON.stringify(descriptorOptions(s))}`
-        const style = applyLanguageToStyle(
-          await fetchMapStyle(API_URL, s.style, getToken, descriptorOptions(s)),
-          s.language,
-        )
+        const style = await fetchMapStyle(API_URL, s.style, getToken, {
+          ...descriptorOptions(s),
+          language: s.language,
+        })
         if (cancelled) return
         appliedStyleKey.current = key
 
@@ -204,18 +208,16 @@ export function useTestbedMap(
   useEffect(() => {
     if (!map || appliedStyleKey.current === styleKey) return
     let cancelled = false
-    fetchMapStyle(
-      API_URL,
-      settings.style,
-      getToken,
-      descriptorOptions(settings),
-    )
+    fetchMapStyle(API_URL, settings.style, getToken, {
+      ...descriptorOptions(settings),
+      language: settingsRef.current.language,
+    })
       .then((style) => {
         if (cancelled) return
         appliedStyleKey.current = styleKey
         // Terrain on a source the next style may not have → detach first.
         map.setTerrain(null)
-        map.setStyle(applyLanguageToStyle(style, settingsRef.current.language))
+        map.setStyle(style)
         setError(null)
       })
       .catch((err) => {
@@ -229,10 +231,9 @@ export function useTestbedMap(
   }, [map, styleKey, getToken])
 
   // ---- language changed → rewrite labels in place --------------------------
-  useEffect(() => {
-    if (!map || !map.isStyleLoaded()) return
-    applyLanguageToMap(map, settings.language)
-  }, [map, settings.language])
+  // The library hook re-applies on every style.load too, which is harmless
+  // on a descriptor that was already fetched with the language.
+  useMapLanguage(map, settings.language)
 
   // ---- projection ----------------------------------------------------------
   useEffect(() => {
