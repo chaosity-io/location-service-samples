@@ -5,10 +5,12 @@ import { useTestbedMap } from '@/lib/map/useTestbedMap'
 import { descriptorOptions, useMapSettings } from '@/lib/settings/map-settings'
 import {
   buildMapStyleUrl,
+  buildStaticMapUrl,
   fetchStaticMap,
   POI_CATEGORIES,
   type PoiCategory,
   setPoiVisibility,
+  type StaticMapOptions,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -39,6 +41,13 @@ interface StyleStats {
  * The map itself as the thing under test: the descriptor the global settings
  * produce, the POI layers it carries (client-side visibility, no request),
  * and the static-map render of the current view (Enterprise tier).
+ *
+ * POIs are two different things on the two maps, and the page says so. On the
+ * interactive map they are tile layers, toggled per category for free. The
+ * static map is rendered by Amazon, which takes ONE switch — `PointsOfInterests`
+ * Enabled | Disabled, all categories or none (Enabled is Amazon's default) —
+ * and draws icons only at street zooms. A render of a country-wide view shows
+ * none, whatever the switch says.
  */
 export default function MapsShowcase() {
   const container = useRef<HTMLDivElement>(null)
@@ -51,6 +60,9 @@ export default function MapsShowcase() {
   const [staticUrl, setStaticUrl] = useState<string | null>(null)
   const [staticError, setStaticError] = useState<string | null>(null)
   const [staticBusy, setStaticBusy] = useState(false)
+  const [staticPois, setStaticPois] = useState(true)
+  /** The last static-map request, so what went on the wire is visible. */
+  const [staticRequest, setStaticRequest] = useState<string | null>(null)
 
   // `setStyle` resets every layer to what the descriptor says, so the POI
   // choice is re-applied after each style load. `setPoiVisibility` tolerates
@@ -108,22 +120,20 @@ export default function MapsShowcase() {
       const c = map.getCenter()
       // The static map takes only Standard and Satellite (STATIC_MAP_STYLES).
       const style = settings.style === 'Satellite' ? 'Satellite' : 'Standard'
-      // The API accepts at most 14 decimals per coordinate and the library
-      // sends the floats as-is, so a raw map centre (15+ decimals) is a 400
-      // (location-service-client#29). Six decimals is ~10 cm.
-      const round = (n: number) => Number(n.toFixed(6))
-      const blob = await fetchStaticMap(
-        API_URL,
-        {
-          width: 640,
-          height: 400,
-          center: [round(c.lng), round(c.lat)],
-          zoom: Math.min(20, Math.max(0, Math.round(map.getZoom()))),
-          style,
-          ...(style === 'Standard' && { colorScheme: settings.colorScheme }),
-        },
-        getToken,
-      )
+      // The raw centre is fine: location-client ≥ 0.5.1 rounds coordinates to
+      // the six decimals the API accepts (location-service-client#29).
+      const options: StaticMapOptions = {
+        width: 640,
+        height: 400,
+        center: [c.lng, c.lat],
+        zoom: Math.min(20, Math.max(0, Math.round(map.getZoom()))),
+        style,
+        ...(style === 'Standard' && { colorScheme: settings.colorScheme }),
+        // A MODE, not a category list — the only POI control a static map has.
+        pointsOfInterests: staticPois ? 'Enabled' : 'Disabled',
+      }
+      setStaticRequest(buildStaticMapUrl(API_URL, options))
+      const blob = await fetchStaticMap(API_URL, options, getToken)
       setStaticUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev)
         return URL.createObjectURL(blob)
@@ -133,7 +143,7 @@ export default function MapsShowcase() {
     } finally {
       setStaticBusy(false)
     }
-  }, [map, settings.style, settings.colorScheme, getToken])
+  }, [map, settings.style, settings.colorScheme, staticPois, getToken])
 
   const descriptorUrl = buildMapStyleUrl(
     API_URL,
@@ -204,6 +214,20 @@ export default function MapsShowcase() {
               through <code>fetchStaticMap</code>. Enterprise tier; Standard or
               Satellite only.
             </p>
+            <label className="mt-2 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={staticPois}
+                onChange={(e) => setStaticPois(e.target.checked)}
+              />
+              Points of interest
+            </label>
+            <p className="mt-1 text-xs text-gray-500">
+              Rendered by Amazon: one switch for <em>all</em> POI categories (
+              <code>pointsOfInterests</code>), none of the per-category toggles
+              above — those are interactive-map layers. Icons are drawn at
+              street zooms only; a country-wide view has none either way.
+            </p>
             <button
               type="button"
               onClick={loadStatic}
@@ -224,6 +248,11 @@ export default function MapsShowcase() {
           <h3 className="mb-2 text-sm font-semibold text-gray-900">
             Static map
           </h3>
+          {staticRequest && (
+            <code className="mb-2 block rounded-md bg-gray-50 p-2 text-xs break-all">
+              GET {staticRequest}
+            </code>
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element -- blob URL from an authenticated fetch */}
           <img
             src={staticUrl}

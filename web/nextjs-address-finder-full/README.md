@@ -78,12 +78,12 @@ Next 16 flat config) · `npm run typecheck` · `npm run format`
 - Next 16 / React 19; ESLint flat config from `eslint-config-next` (no `next lint`).
 - All `@chaosity/*` packages resolve from the npm registry — the lockfile must
   never point at local checkouts.
-- **Label language is applied by `src/lib/map/language.ts`, not by the client
-  library's `useMapLanguage` / `fetchMapStyle({ language })`.** Those rewrite
-  `text-field` on every symbol layer, which blanks house numbers
-  (`addr_housenumber`) and road shields (`shield_text`) — 30 of the Standard
-  style's 62 labelled layers. Tracked as location-service-client#28; drop the
-  local helper when it ships.
+- **Needs `@chaosity/location-client` ≥ 0.5.1.** Before that, the library's
+  `useMapLanguage` / `fetchMapStyle({ language })` rewrote `text-field` on
+  every symbol layer and blanked house numbers (`addr_housenumber`) and road
+  shields (`shield_text`) — 30 of the Standard style's 62 labelled layers —
+  and `fetchStaticMap` sent a raw map centre the API refused for having more
+  than 14 decimals (location-service-client#28, #29).
 - Country bounds come from a static table (`src/lib/countries.ts`, public
   domain), not from a `Geocode` of the country — that used to cost a billable
   request per change and answered with a point, not a box.
