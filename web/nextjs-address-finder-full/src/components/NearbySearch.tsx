@@ -2,6 +2,7 @@
 
 import { describeError } from '@/lib/address'
 import { useTestbedMap } from '@/lib/map/useTestbedMap'
+import { PLACE_CATEGORIES } from '@/lib/place-categories'
 import { countryFilter, useCountry } from '@/lib/settings/country'
 import { useMapSettings } from '@/lib/settings/map-settings'
 import {
@@ -26,15 +27,13 @@ interface ResultRow {
   distance?: number
 }
 
+/**
+ * AWS's own category list (src/lib/place-categories.ts), with an "any" entry
+ * first — the select holds every ID SearchNearby accepts, nothing hand-picked.
+ */
 const CATEGORIES: { id: string; label: string }[] = [
   { id: '', label: 'Any category' },
-  { id: 'restaurant', label: 'Restaurants' },
-  { id: 'hospital', label: 'Hospitals' },
-  { id: 'pharmacy', label: 'Pharmacies' },
-  { id: 'petrol_station', label: 'Fuel' },
-  { id: 'grocery', label: 'Grocery' },
-  { id: 'hotel', label: 'Hotels' },
-  { id: 'atm', label: 'ATMs' },
+  ...PLACE_CATEGORIES.map((c) => ({ id: c.id, label: c.name })),
 ]
 
 /**
