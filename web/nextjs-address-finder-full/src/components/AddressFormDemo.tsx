@@ -33,9 +33,9 @@ export function AddressFormDemo({
       : undefined
 
   const handleSubmit: SubmitHandler = async (getData) => {
-    // SingleUse: no extra GetPlace on submit. The API never forwards
-    // IntendedUse anyway (RFC-0001), so this is also the honest value.
-    const data = await getData({ intendedUse: 'SingleUse' })
+    // No argument since address-form 0.4.0: the API never forwards
+    // IntendedUse (RFC-0001), so the form stopped asking for it.
+    const data = await getData()
     setSubmittedData(data)
   }
 

@@ -22,7 +22,7 @@ import {
   type ReverseGeocodeCommandOutput,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 type SearchMode = 'autocomplete' | 'geocode'

@@ -14,7 +14,7 @@ import {
   type SearchTextCommandOutput,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { useCallback, useRef, useState } from 'react'
 
 type Mode = 'nearby' | 'text'

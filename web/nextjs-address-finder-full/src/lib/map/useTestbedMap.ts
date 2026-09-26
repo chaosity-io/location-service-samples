@@ -8,13 +8,20 @@ import {
   useLocationClient,
   useMapLanguage,
 } from '@chaosity/location-client-react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 import { useCountry } from '../settings/country'
 import { descriptorOptions, useMapSettings } from '../settings/map-settings'
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
+
+// MapLibre 6 runs its worker from a file the app serves, and cannot find one
+// under a bundler on its own: without this the map mounts and draws no tile.
+// `scripts/copy-maplibre-worker.mjs` puts the file (and the chunk it imports)
+// in public/maplibre/ before every `dev` and `build`. Every map here is built
+// by this hook, so this is the one place it is set.
+maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
 
 /** Padding around a country's bbox when the map frames it. */
 const FIT_PADDING = 24

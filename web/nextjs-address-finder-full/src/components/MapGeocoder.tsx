@@ -8,7 +8,7 @@ import { GeoPlaces } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { useEffect, useRef, useState } from 'react'
 
 /**
@@ -30,8 +30,8 @@ export default function MapGeocoder() {
   // The control lives as long as the map does.
   useEffect(() => {
     if (!map || !client) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate maplibre-gl types from the geocoder plugin
-    const geoPlaces = new GeoPlaces(client as any, map as any)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the provider's LocationClient is not the adapter's GeoPlacesClient type
+    const geoPlaces = new GeoPlaces(client as any, map)
     const geocoder = new MaplibreGeocoder(geoPlaces, {
       maplibregl,
       placeholder: 'Search for places',
