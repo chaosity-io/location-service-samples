@@ -78,7 +78,17 @@ Next 16 flat config) · `npm run typecheck` · `npm run format`
 - Next 16 / React 19; ESLint flat config from `eslint-config-next` (no `next lint`).
 - All `@chaosity/*` packages resolve from the npm registry — the lockfile must
   never point at local checkouts.
-- **Needs `@chaosity/location-client` ≥ 0.5.1.** Before that, the library's
+- **Needs `@chaosity/location-client` ≥ 0.11.0,
+  `@chaosity/location-client-react` ≥ 0.9.0, `@chaosity/address-form` ≥ 0.6.0
+  and `maplibre-gl` ≥ 6.4.1.** maplibre-gl up to 6.4.0 carries
+  GHSA-jrc7-96c5-q579, an XSS in the attribution control, and those are the
+  first releases whose ranges admit a patched one.
+- MapLibre 6 runs its worker from a file the app serves:
+  `scripts/copy-maplibre-worker.mjs` copies it into `public/maplibre/` before
+  every `dev` and `build`, and `useTestbedMap` points MapLibre at it. Without
+  that, every map mounts and draws no tile, and nothing in `typecheck`, `lint`
+  or `build` notices: open a map page and watch it draw.
+- Before `@chaosity/location-client` 0.5.1, the library's
   `useMapLanguage` / `fetchMapStyle({ language })` rewrote `text-field` on
   every symbol layer and blanked house numbers (`addr_housenumber`) and road
   shields (`shield_text`) — 30 of the Standard style's 62 labelled layers —
@@ -87,5 +97,5 @@ Next 16 flat config) · `npm run typecheck` · `npm run format`
 - Country bounds come from a static table (`src/lib/countries.ts`, public
   domain), not from a `Geocode` of the country — that used to cost a billable
   request per change and answered with a point, not a box.
-- The address form's `intendedUse` submit option is kept at `SingleUse`; the
-  API does not forward `IntendedUse` regardless.
+- The address form's `getData()` takes no `intendedUse` since address-form
+  0.4.0: the API does not forward `IntendedUse`.
