@@ -47,15 +47,19 @@ is the first thing to check. The second is whether the plan the application is o
 actually grants the endpoint being called — a lower tier returns 403 "not
 entitled" rather than a 404.
 
-## Most samples are pinned to a client version they can never leave
+## A client range on `0.x` never leaves its minor
 
-11 of the 12 packages here declare `"@chaosity/location-client": "^0.1.14"`. The
-published client is well past that, and **a caret range on a `0.x` version never
-crosses a minor** — npm treats each `0.x` minor as incompatible, so `^0.1.14`
-will not resolve `0.2.0`, let alone `0.5.x`. These samples are frozen four
-minors back and will not move on their own.
+**A caret range on a `0.x` version never crosses a minor.** npm treats each
+`0.x` minor as incompatible, so `^0.10.0` will not resolve `0.11.0`. A sample
+stays on whatever minor its range was last moved to, and nothing moves it for
+you. What each package here declares:
 
-Only `web/nextjs-address-finder-full` tracks the current client.
+```bash
+for f in $(git ls-files '*package.json'); do node -e "
+const p = require('./$f'), d = { ...p.dependencies, ...p.devDependencies };
+const c = Object.entries(d).filter(([k]) => k.startsWith('@chaosity/'));
+if (c.length) console.log('$f', c.map(([k, v]) => k + '@' + v).join(' '))"; done
+```
 
 Consequences, both of which have bitten:
 
@@ -66,7 +70,23 @@ Consequences, both of which have bitten:
 - **Do not copy a range from an existing sample into a new one.** Take the
   current published version.
 
-Tracked in #16.
+## A map needs MapLibre's worker served
+
+`maplibre-gl` 6 runs its worker from a module file, and a bundler hides that
+file from it: without the steps below, a map mounts, draws no tile, and logs
+"Worker failed to load". So every sample that draws a map with it:
+
+- copies `maplibre-gl-worker.mjs` and the `maplibre-gl-shared.mjs` it imports
+  into `public/maplibre/` with `scripts/copy-maplibre-worker.mjs`, run by
+  `predev` and `prebuild`. The copy is git-ignored and lint-ignored, and it is
+  always the installed version;
+- calls `setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')` once, in the module
+  that builds the map, before the first `new Map`.
+
+A new map sample needs both. Import `maplibre-gl` as a namespace
+(`import * as maplibregl`): it has no default export. The floor is 6.4.1,
+because every earlier release carries GHSA-jrc7-96c5-q579, an XSS in the
+attribution control.
 
 ## Credentials
 

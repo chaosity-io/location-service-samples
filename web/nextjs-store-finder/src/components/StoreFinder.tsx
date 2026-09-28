@@ -21,9 +21,15 @@ import {
   ReverseGeocodeCommand,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+// MapLibre 6 runs its worker from a file the app serves, and cannot find one
+// under a bundler on its own: without this the map mounts and draws no tile.
+// `scripts/copy-maplibre-worker.mjs` puts it in public/maplibre/ before every
+// `dev` and `build`.
+maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
@@ -367,10 +373,12 @@ export default function StoreFinder() {
 
     ;(async () => {
       try {
+        // Plain Standard / Light. Terrain and 3D buildings are plan
+        // features: a style that asks for one the application's plan lacks is
+        // refused whole (403 FeatureNotEntitledException), and the store
+        // finder would have no map at all.
         const style = await fetchMapStyle(API_URL, 'Standard', getToken, {
           colorScheme: 'Light' as const,
-          terrain: 'Terrain3D' as const,
-          buildings: 'Buildings3D' as const,
         })
 
         if (cancelled) return
@@ -390,17 +398,6 @@ export default function StoreFinder() {
           new maplibregl.NavigationControl({ visualizePitch: true }),
           'top-right',
         )
-
-        const demSourceId = Object.entries(
-          (style as { sources?: Record<string, { type?: string }> }).sources ??
-            {},
-        ).find(([, src]) => src.type === 'raster-dem')?.[0]
-        if (demSourceId) {
-          instance.addControl(
-            new maplibregl.TerrainControl({ source: demSourceId }),
-            'top-right',
-          )
-        }
 
         instance.addControl(
           new maplibregl.GeolocateControl({

@@ -24,7 +24,10 @@ import { useState } from 'react'
  *  - Filter.IncludeCountries: restrict to specific countries
  *
  * Returns: ResultItems[] with Title, Address (normalized components),
- *          Position [lng, lat], TimeZone, PlaceType.
+ *          Position [lng, lat], PlaceType, MatchScores. TimeZone and
+ *          AccessPoints come back only when AdditionalFeatures asks for them,
+ *          which is rich place data: a plan feature, refused 403
+ *          FeatureNotEntitledException on a plan without it.
  *
  * @see https://docs.chaosity.cloud/docs/client-libraries
  */

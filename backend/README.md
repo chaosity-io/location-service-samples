@@ -22,7 +22,7 @@ Backend integration samples for various server frameworks.
 ## Common Setup
 
 All backend samples require:
-- API credentials from [portal.chaosity.cloud](https://portal.chaosity.cloud)
+- API credentials from [location-dashboard.chaosity.cloud](https://location-dashboard.chaosity.cloud)
 - Framework-specific runtime
 - Environment variables configuration
 

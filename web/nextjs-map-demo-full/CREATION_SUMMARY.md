@@ -79,7 +79,7 @@ Created a new sample project `nextjs-map-demo` based on `nextjs-app-router` with
 
 4. **Access:**
    ```
-   http://localhost:3002
+   http://localhost:3001
    ```
 
 ## Customization Options

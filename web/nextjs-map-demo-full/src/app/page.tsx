@@ -24,7 +24,8 @@ export default function Home() {
                 🗺️ Multiple Map Styles
               </h3>
               <p className="text-sm text-blue-700">
-                Standard, Monochrome, Hybrid, and Satellite views
+                Standard and Monochrome; Hybrid and Satellite on a plan that
+                includes them
               </p>
             </div>
             <div className="rounded-lg bg-green-50 p-4">
@@ -40,7 +41,8 @@ export default function Home() {
                 🌍 Political Views
               </h3>
               <p className="text-sm text-purple-700">
-                Country-specific boundary representations
+                Country-specific boundary representations, on a plan that
+                includes them
               </p>
             </div>
             <div className="rounded-lg bg-yellow-50 p-4">

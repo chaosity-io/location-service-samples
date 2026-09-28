@@ -15,8 +15,16 @@ dotenv.config()
 const app = express()
 app.use(express.json())
 
-// Connector auto-detects config from environment
+// Connector auto-detects config from environment, LOCATION_ORIGIN included
 const connector = new LocationServiceConnector()
+
+// The API refuses a request whose Origin is not the application's allowed
+// domain. A browser's Origin is forwarded as it came; a caller without one
+// (curl, a job) gets the connector's LOCATION_ORIGIN. Forwarding
+// `${req.headers.origin}` sent the string "undefined" for such a caller, and a
+// per-call header beats the connector's default, so it was refused.
+const forwardOrigin = (req: express.Request) =>
+  req.headers.origin ? { headers: { Origin: req.headers.origin } } : undefined
 
 console.log('✓ Location client configured')
 
@@ -35,7 +43,7 @@ app.post('/api/search', async (req, res) => {
         BiasPosition: biasPosition,
         MaxResults: maxResults,
       }),
-      { headers: { Origin: `${req.headers.origin}` } },
+      forwardOrigin(req),
     )
 
     res.json(result)
@@ -63,7 +71,7 @@ app.post('/api/reverse-geocode', async (req, res) => {
       new ReverseGeocodeCommand({
         QueryPosition: position,
       }),
-      { headers: { Origin: `${req.headers.origin}` } },
+      forwardOrigin(req),
     )
 
     res.json(result)
@@ -91,7 +99,7 @@ app.post('/api/suggest', async (req, res) => {
         BiasPosition: biasPosition,
         MaxResults: maxResults,
       }),
-      { headers: { Origin: `${req.headers.origin}` } },
+      forwardOrigin(req),
     )
 
     res.json(result)

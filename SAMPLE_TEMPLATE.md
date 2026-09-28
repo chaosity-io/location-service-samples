@@ -62,11 +62,13 @@ sample-name/
 
 See `.env.example` for required variables:
 
-- `LOCATION_SERVICE_API_URL` - API endpoint
-- `LOCATION_SERVICE_CLIENT_ID` - Your client ID
-- `LOCATION_SERVICE_CLIENT_SECRET` - Your client secret
+- `LOCATION_API_URL` - the API endpoint shown for your application
+- `LOCATION_CLIENT_ID` - Your client ID
+- `LOCATION_CLIENT_SECRET` - Your client secret
 
-Get credentials at [portal.chaosity.cloud](https://portal.chaosity.cloud)
+These are the names `@chaosity/location-client` reads from the environment.
+Get the endpoint and credentials for your application at
+[location-dashboard.chaosity.cloud](https://location-dashboard.chaosity.cloud)
 
 ## Key Concepts
 
@@ -86,7 +88,7 @@ Explain the main concepts demonstrated:
 
 - [API Documentation](https://docs.chaosity.cloud)
 - [NPM Package](https://www.npmjs.com/package/@chaosity/location-client)
-- [Developer Portal](https://portal.chaosity.cloud)
+- [Dashboard](https://location-dashboard.chaosity.cloud)
 
 ## License
 
@@ -96,10 +98,11 @@ MIT
 ## .env.example Template
 
 ```bash
-# Chaosity Location Service Configuration
-LOCATION_SERVICE_API_URL=https://api.chaosity.cloud/v1
-LOCATION_SERVICE_CLIENT_ID=your_client_id_here
-LOCATION_SERVICE_CLIENT_SECRET=your_client_secret_here
+# Chaosity Location Service Configuration: the endpoint shown for your
+# application, with no path after it, and its client credentials
+LOCATION_API_URL=https://api.yourdomain.com
+LOCATION_CLIENT_ID=your_client_id_here
+LOCATION_CLIENT_SECRET=your_client_secret_here
 
 # Optional: Map Configuration
 MAP_CENTER_LAT=49.2827
@@ -108,6 +111,11 @@ MAP_ZOOM=12
 ```
 
 ## package.json Template (Web)
+
+Take each `@chaosity/*` version from `npm view <package> version` when you
+create the sample, not from here: a caret range on `0.x` never leaves its
+minor (see `AGENTS.md`). A sample that draws a map also needs MapLibre's worker
+served, which `AGENTS.md` describes.
 
 ```json
 {
@@ -121,7 +129,7 @@ MAP_ZOOM=12
     "preview": "vite preview"
   },
   "dependencies": {
-    "@chaosity/location-client": "^0.1.3"
+    "@chaosity/location-client": "^0.11.0"
   },
   "devDependencies": {
     "vite": "^5.0.0"
@@ -143,9 +151,9 @@ MAP_ZOOM=12
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@chaosity/location-client-react": "^0.1.4"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@chaosity/location-client-react": "^0.9.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",

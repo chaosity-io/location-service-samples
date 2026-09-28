@@ -12,9 +12,15 @@ import {
   fetchMapStyle,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+// MapLibre 6 runs its worker from a file the app serves, and cannot find one
+// under a bundler on its own: without this the map mounts and draws no tile.
+// `scripts/copy-maplibre-worker.mjs` puts it in public/maplibre/ before every
+// `dev` and `build`.
+maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 

@@ -23,7 +23,9 @@ export function AddressFormDemo({
   const [apiMode, setApiMode] = useState<ApiMode>(defaultApiMode)
 
   const handleSubmit: SubmitHandler = async (getData) => {
-    const data = await getData({ intendedUse: 'SingleUse' })
+    // No argument since address-form 0.4.0: the API never forwards
+    // IntendedUse, so the form stopped asking for it.
+    const data = await getData()
     setSubmittedData(data)
   }
 
@@ -54,7 +56,7 @@ export function AddressFormDemo({
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Core (autocomplete)
+                  Autocomplete
                 </button>
                 <button
                   onClick={() => setApiMode('suggest')}
@@ -64,7 +66,7 @@ export function AddressFormDemo({
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Pro (suggest)
+                  Suggest
                 </button>
               </div>
             </div>
@@ -72,17 +74,15 @@ export function AddressFormDemo({
           <div className="mt-2 rounded-md bg-blue-50 px-3 py-1.5 text-xs text-blue-700">
             {apiMode === 'autocomplete' ? (
               <>
-                <strong>Core plan:</strong> Uses{' '}
-                <code>/address/autocomplete</code> +{' '}
-                <code>/address/place</code> +{' '}
-                <code>/address/search/reverse-geocode</code> (for location
+                <strong>Autocomplete:</strong> uses{' '}
+                <code>/address/autocomplete</code> + <code>/address/place</code>{' '}
+                + <code>/address/search/reverse-geocode</code> (for the location
                 button)
               </>
             ) : (
               <>
-                <strong>Pro plan:</strong> Uses{' '}
-                <code>/address/suggestion</code> +{' '}
-                <code>/address/place</code> (all address endpoints available)
+                <strong>Suggest:</strong> uses <code>/address/suggestion</code>{' '}
+                (the location button too) + <code>/address/place</code>
               </>
             )}
           </div>
