@@ -7,6 +7,7 @@ import {
   GeocodeCommandOutput,
   createTransformRequest,
   fetchMapStyle,
+  type MapStyle,
 } from '@chaosity/location-client'
 import {
   useLocationClient,
@@ -14,9 +15,15 @@ import {
 } from '@chaosity/location-client-react'
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+// MapLibre 6 runs its worker from a file the app serves, and cannot find one
+// under a bundler on its own: without this the map mounts and draws no tile.
+// `scripts/copy-maplibre-worker.mjs` puts it in public/maplibre/ before every
+// `dev` and `build`.
+maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
@@ -36,9 +43,16 @@ export default function MapDemo() {
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mapStyle, setMapStyle] = useState('Standard')
+  const [mapStyle, setMapStyle] = useState<MapStyle>('Standard')
   const [colorScheme, setColorScheme] = useState('Light')
   const [politicalView, setPoliticalView] = useState('')
+  // Terrain and 3D buildings are plan features, like the Satellite and Hybrid
+  // styles and a political view: a style that asks for one the application's
+  // plan lacks is refused whole (403 FeatureNotEntitledException). So the
+  // first load asks for none of them, and each is a control the reader turns on.
+  const [terrain, setTerrain] = useState(false)
+  const [buildings, setBuildings] = useState(false)
+  const [styleError, setStyleError] = useState<string | null>(null)
   const [filterCountry, setFilterCountry] = useState<string>('')
   const [language, setLanguage] = useState<string>('en')
   const languageRef = useRef(language)
@@ -48,6 +62,21 @@ export default function MapDemo() {
   useMapLanguage(mapInstance, language)
 
   const isRasterStyle = mapStyle === 'Satellite' || mapStyle === 'Hybrid'
+
+  // The descriptor options the controls ask for (language aside: it is
+  // applied in place), and a key for them. The key of the style on the map is
+  // kept, so the style effect does not fetch (and bill) the same descriptor
+  // again when it first runs, or when a refused change is undone.
+  const styleOptions = {
+    ...(!isRasterStyle && {
+      colorScheme: colorScheme as 'Light' | 'Dark',
+      ...(terrain && { terrain: 'Terrain3D' as const }),
+      ...(buildings && { buildings: 'Buildings3D' as const }),
+    }),
+    ...(politicalView && { politicalView }),
+  }
+  const styleKey = `${mapStyle}|${JSON.stringify(styleOptions)}`
+  const appliedStyleKey = useRef('')
 
   const flyToCountryCenter = useCallback(
     async (countryCode: string) => {
@@ -60,9 +89,15 @@ export default function MapDemo() {
       const commandInput: GeocodeCommandInput = {
         QueryComponents: { Country: countryCode },
       }
-      const response: GeocodeCommandOutput = await client.send(
-        new GeocodeCommand(commandInput),
-      )
+      // Called from an effect, so nothing above would catch a failure: log it
+      // here rather than leave an unhandled rejection.
+      let response: GeocodeCommandOutput
+      try {
+        response = await client.send(new GeocodeCommand(commandInput))
+      } catch (err) {
+        console.error('Country geocode error:', err)
+        return
+      }
 
       if (response.ResultItems && response.ResultItems.length > 0) {
         const countryGeocode = response.ResultItems.find((item) =>
@@ -84,7 +119,9 @@ export default function MapDemo() {
     [clientLoading, client, clientError],
   )
 
-  // Sync TerrainControl after each style load
+  // Sync TerrainControl after each style load, on whichever elevation source
+  // the style declares: the descriptor names it (today `terrainSource`), so
+  // the source is read from the style rather than assumed.
   const syncTerrainControl = useCallback((mapInst: maplibregl.Map) => {
     if (terrainControlRef.current) {
       try {
@@ -94,8 +131,11 @@ export default function MapDemo() {
       }
       terrainControlRef.current = null
     }
-    if (mapInst.getSource('amazon')) {
-      const tc = new maplibregl.TerrainControl({ source: 'amazon' })
+    const dem = Object.entries(mapInst.getStyle().sources ?? {}).find(
+      ([, src]) => src.type === 'raster-dem',
+    )?.[0]
+    if (dem) {
+      const tc = new maplibregl.TerrainControl({ source: dem })
       mapInst.addControl(tc, 'top-right')
       terrainControlRef.current = tc
     }
@@ -114,17 +154,14 @@ export default function MapDemo() {
 
     ;(async () => {
       try {
+        // Plain Standard / Light: nothing any plan with the map routes lacks.
         const style = await fetchMapStyle(API_URL, mapStyle, getToken, {
-          colorScheme: colorScheme as 'Light' | 'Dark',
-          ...(!isRasterStyle && {
-            terrain: 'Terrain3D' as const,
-            buildings: 'Buildings3D' as const,
-          }),
-          ...(politicalView && { politicalView }),
+          ...styleOptions,
           language: languageRef.current,
         })
 
         if (cancelled) return
+        appliedStyleKey.current = styleKey
 
         const instance = new maplibregl.Map({
           container: mapContainer.current!,
@@ -210,19 +247,42 @@ export default function MapDemo() {
   useEffect(() => {
     const currentMap = map.current
     if (!currentMap || loading) return
+    if (appliedStyleKey.current === styleKey) {
+      setStyleError(null)
+      return
+    }
+    // A later change supersedes this one: its answer must not land after it.
+    let cancelled = false
 
     fetchMapStyle(API_URL, mapStyle, getToken, {
-      ...(!isRasterStyle && { colorScheme: colorScheme as 'Light' | 'Dark' }),
-      ...(!isRasterStyle && {
-        terrain: 'Terrain3D' as const,
-        buildings: 'Buildings3D' as const,
-      }),
-      ...(politicalView && { politicalView }),
+      ...styleOptions,
       language: languageRef.current,
     })
-      .then((style) => currentMap.setStyle(style))
-      .catch((err) => console.error('[style update]', err))
-  }, [mapStyle, colorScheme, politicalView, loading, getToken, isRasterStyle])
+      .then((style) => {
+        if (cancelled) return
+        // Terrain on a source the next style may not have → detach first.
+        currentMap.setTerrain(null)
+        currentMap.setStyle(style)
+        appliedStyleKey.current = styleKey
+        setStyleError(null)
+      })
+      .catch((err) => {
+        // A refused option (403 FeatureNotEntitledException) names the
+        // feature in its message. Say so on screen and keep the map that is
+        // already drawn, rather than swapping in a style that cannot load.
+        if (cancelled) return
+        console.error('[style update]', err)
+        setStyleError(
+          err instanceof Error ? err.message : 'The map style was refused',
+        )
+      })
+    return () => {
+      cancelled = true
+    }
+    // The controls' state is folded into styleKey; listing it too would
+    // double-run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [styleKey, loading, getToken])
 
   // Country filter and language for geocoder
   useEffect(() => {
@@ -276,7 +336,7 @@ export default function MapDemo() {
             </label>
             <select
               value={mapStyle}
-              onChange={(e) => setMapStyle(e.target.value)}
+              onChange={(e) => setMapStyle(e.target.value as MapStyle)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={loading}
             >
@@ -326,7 +386,34 @@ export default function MapDemo() {
           </div>
         </div>
 
-        {/* Row 2: Country Filter, Language */}
+        {/* Row 2: plan features that are opt-in */}
+        <div className="flex flex-wrap gap-6">
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={terrain}
+              onChange={(e) => setTerrain(e.target.checked)}
+              disabled={isRasterStyle || loading}
+            />
+            3D terrain
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={buildings}
+              onChange={(e) => setBuildings(e.target.checked)}
+              disabled={isRasterStyle || loading}
+            />
+            3D buildings
+          </label>
+          <span className="text-xs text-gray-500">
+            Satellite, Hybrid, a political view, terrain and 3D buildings are
+            plan features. One your plan does not include is refused, and the
+            map keeps its last style.
+          </span>
+        </div>
+
+        {/* Row 3: Country Filter, Language */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -382,6 +469,16 @@ export default function MapDemo() {
           </div>
         </div>
       </div>
+
+      {styleError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          <strong>Map not updated:</strong> {styleError} The map shows the last
+          style that loaded.
+        </div>
+      )}
 
       <div className="relative h-150 w-full overflow-hidden rounded-lg bg-white shadow-lg">
         {loading && (

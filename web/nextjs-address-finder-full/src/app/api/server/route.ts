@@ -71,19 +71,26 @@ export async function POST(req: Request) {
     input: unknown
   }
   if (!(op in PATHS)) {
-    return NextResponse.json({ status: 400, ms: 0, auth, op, error: `Unknown op ${op}` }, { status: 400 })
+    return NextResponse.json(
+      { status: 400, ms: 0, auth, op, error: `Unknown op ${op}` },
+      { status: 400 },
+    )
   }
 
   // The API requires an Origin on every data request; forward the browser's,
   // fall back to the configured one for non-browser callers (curl).
-  const origin = req.headers.get('origin') ?? process.env.LOCATION_ALLOWED_ORIGIN ?? ''
+  const origin =
+    req.headers.get('origin') ?? process.env.LOCATION_ALLOWED_ORIGIN ?? ''
 
   try {
     if (auth === 'basic') {
       const apiUrl = process.env.LOCATION_API_URL
       const id = process.env.LOCATION_CLIENT_ID
       const secret = process.env.LOCATION_CLIENT_SECRET
-      if (!apiUrl || !id || !secret) throw new Error('LOCATION_API_URL / LOCATION_CLIENT_ID / LOCATION_CLIENT_SECRET are not set')
+      if (!apiUrl || !id || !secret)
+        throw new Error(
+          'LOCATION_API_URL / LOCATION_CLIENT_ID / LOCATION_CLIENT_SECRET are not set',
+        )
       const res = await fetch(`${apiUrl}${PATHS[op]}`, {
         method: 'POST',
         headers: {
@@ -122,7 +129,12 @@ export async function POST(req: Request) {
       body,
     })
   } catch (err) {
-    const e = err as { statusCode?: number; code?: string; message?: string; requestId?: string }
+    const e = err as {
+      statusCode?: number
+      code?: string
+      message?: string
+      requestId?: string
+    }
     const status = e.statusCode && e.statusCode >= 400 ? e.statusCode : 500
     return NextResponse.json(
       {

@@ -28,12 +28,18 @@ Interactive map demo with geocoding search powered by AWS Location Service.
    cp .env.example .env
    ```
    
-   Edit `.env` and add your Location Service credentials:
+   Edit `.env` and add the endpoint and credentials shown for your application:
    ```
-   LOCATION_API_URL=https://your-api-url.com
+   LOCATION_API_URL=https://api.yourdomain.com
    LOCATION_CLIENT_ID=your_client_id
    LOCATION_CLIENT_SECRET=your_client_secret
+   NEXT_PUBLIC_LOCATION_API_URL=https://api.yourdomain.com
    ```
+
+   The first three stay on the server. `NEXT_PUBLIC_LOCATION_API_URL` is the
+   same endpoint for the browser, where the map requests its style and tiles.
+   The application's allowed domain must match where the sample runs:
+   `localhost:3001`.
 
 3. **Run development server:**
    ```bash
@@ -42,7 +48,7 @@ Interactive map demo with geocoding search powered by AWS Location Service.
 
 4. **Open browser:**
    ```
-   http://localhost:3002
+   http://localhost:3001
    ```
 
 ## Project Structure
@@ -101,12 +107,20 @@ Click the geolocation button (crosshair icon) to center the map on your current 
 
 ### Change Map Style
 
-Edit `MapDemo.tsx`:
+The map opens on `Standard` / `Light`, the controls' initial state. To open on
+another, change that state in `MapDemo.tsx`. The first load and the controls
+share one set of style options, so the selects then show what the map shows:
 ```tsx
-const styleUrl = `${config.apiUrl}/maps/Satellite/descriptor?${params.toString()}`
+const [mapStyle, setMapStyle] = useState<MapStyle>('Monochrome')
+const [colorScheme, setColorScheme] = useState('Dark')
 ```
 
-Available styles: `Standard`, `Monochrome`, `Hybrid`, `Satellite`
+`Standard` and `Monochrome` work on every plan with the map routes. `Hybrid` and
+`Satellite`, a political view, 3D terrain and 3D buildings are plan features: an
+application whose plan does not include one gets 403
+`FeatureNotEntitledException` for the whole style, with a message naming the
+feature. That is why the demo opens without them, offers each as a control, and
+shows a refusal on the page while the map keeps its last style.
 
 ### Adjust Initial View
 

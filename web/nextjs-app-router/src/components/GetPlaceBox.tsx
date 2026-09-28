@@ -13,14 +13,18 @@ import { useState } from 'react'
  * GetPlace — Retrieve full details for a place by its PlaceId.
  *
  * Use when: a user selects a result from Autocomplete, Suggest, or
- * SearchText and you need comprehensive details (address, contacts,
- * opening hours, categories, access points).
+ * SearchText and you need the full address, position and categories.
  *
  * Key params:
  *  - PlaceId (required): ID from a previous search/autocomplete result
+ *  - AdditionalFeatures (not sent here): 'Contact' adds Contacts and
+ *    OpeningHours, 'Access' AccessPoints, 'TimeZone' TimeZone. These are rich
+ *    place data, a plan feature: an application whose plan lacks it is refused
+ *    403 FeatureNotEntitledException, so this sample does not ask.
  *
- * Returns: Full place details — Title, Address, Position, Categories,
- *          ContactInformation, OpeningHours, AccessPoints, TimeZone.
+ * Returns: Title, Address, Position, Categories, PlaceType, and FoodTypes for
+ *          a restaurant. Contacts, OpeningHours, AccessPoints and TimeZone
+ *          come back only when AdditionalFeatures asks for them.
  *
  * Common flow: Autocomplete → user picks suggestion → GetPlace for details.
  *
@@ -92,20 +96,6 @@ export function GetPlaceBox() {
                   .filter(Boolean)
                   .join(', ')}
               </span>
-            )}
-            {result.Contacts?.Phones && result.Contacts.Phones.length > 0 && (
-              <span className="tags">
-                Phone: {result.Contacts.Phones[0].Value}
-              </span>
-            )}
-            {result.OpeningHours?.[0]?.Display &&
-              result.OpeningHours[0].Display.length > 0 && (
-                <span className="tags">
-                  Hours: {result.OpeningHours[0].Display[0]}
-                </span>
-              )}
-            {result.TimeZone?.Name && (
-              <span className="tags">Timezone: {result.TimeZone.Name}</span>
             )}
           </li>
         </ul>

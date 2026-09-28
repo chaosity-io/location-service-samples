@@ -22,7 +22,9 @@ import { useState } from 'react'
  *  - Filter.IncludeCategories: filter by category (e.g. ["restaurant"])
  *
  * Returns: ResultItems[] with Title, Address, Position, Distance,
- *          Categories, ContactInformation, OpeningHours, FoodTypes.
+ *          Categories. Contacts, OpeningHours, AccessPoints and TimeZone
+ *          come back only when AdditionalFeatures asks for them: rich place
+ *          data, a plan feature.
  *
  * @see https://docs.chaosity.cloud/docs/client-libraries
  */

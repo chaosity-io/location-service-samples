@@ -10,11 +10,11 @@ import { createPersistedStore, usePersistedStore } from './store'
  *
  * WHERE THE LIST COMES FROM
  *
- * The access token carries the application's country scope (api#65,
- * `client.getAppConfig().countries`, alpha-2). When the application is scoped
+ * The access token carries the application's country scope
+ * (`client.getAppConfig().countries`, alpha-2). When the application is scoped
  * the selector offers exactly those countries, because the API narrows every
- * Places request to that scope anyway (api#42): a country outside it is a 400
- * naming the allowed set, so offering it would only demonstrate the refusal.
+ * Places request to that scope anyway: a country outside it is a 400 naming
+ * the allowed set, so offering it would only demonstrate the refusal.
  * Unscoped applications get the whole table and a "worldwide" option.
  *
  * WHAT IT DRIVES

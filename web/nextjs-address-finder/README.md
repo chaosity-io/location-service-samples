@@ -10,6 +10,12 @@ cp .env.example .env  # Add your credentials
 npm run dev           # http://localhost:3001
 ```
 
+`.env` needs four values: `LOCATION_API_URL`, `LOCATION_CLIENT_ID` and
+`LOCATION_CLIENT_SECRET` (the endpoint and credentials shown for your
+application, used on the server), and `NEXT_PUBLIC_LOCATION_API_URL`, the same
+endpoint again for the browser's map requests. The application's allowed domain
+must match where the sample runs: `localhost:3001`.
+
 ## Features
 
 - **Map-Bounded Search** - Only finds addresses in visible map area

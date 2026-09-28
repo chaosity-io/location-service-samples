@@ -29,7 +29,7 @@ React applications using `@chaosity/location-client-react`. Demonstrates hooks, 
 
 All web samples require:
 - Node.js 18+
-- API credentials from [portal.chaosity.cloud](https://portal.chaosity.cloud)
+- API credentials from [location-dashboard.chaosity.cloud](https://location-dashboard.chaosity.cloud)
 - `.env.local` file with credentials
 
 ## Sample Categories

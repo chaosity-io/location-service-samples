@@ -32,9 +32,14 @@
    LOCATION_API_URL=https://api.yourdomain.com
    LOCATION_CLIENT_ID=your_client_id
    LOCATION_CLIENT_SECRET=your_client_secret
-   LOCATION_ALLOWED_DOMAIN=example.com
+   LOCATION_ORIGIN=https://example.com
    PORT=3000
    ```
+
+   `LOCATION_API_URL` is the endpoint shown for your application. The API
+   refuses any request whose `Origin` is not the application's allowed domain.
+   This server forwards the `Origin` of the request it receives, and sends
+   `LOCATION_ORIGIN` when there is none, as with the `curl` calls below.
 
 3. **Run development server:**
    ```bash
@@ -49,7 +54,6 @@ Search for places by text query with optional position bias.
 ```bash
 curl -X POST http://localhost:3000/api/search \
   -H "Content-Type: application/json" \
-  -H "Origin: example.com" \
   -d '{
     "query": "Space Needle",
     "biasPosition": [150.6916303670001, -33.77936728914894],
@@ -68,7 +72,6 @@ Convert coordinates to address.
 ```bash
 curl -X POST http://localhost:3000/api/reverse-geocode \
   -H "Content-Type: application/json" \
-  -H "Origin: example.com" \
   -d '{
     "position": [150.6916303670001, -33.77936728914894]
   }'
@@ -83,7 +86,6 @@ Get autocomplete suggestions for partial queries.
 ```bash
 curl -X POST http://localhost:3000/api/suggest \
   -H "Content-Type: application/json" \
-  -H "Origin: example.com" \
   -d '{
     "query": "IFly",
     "biasPosition": [150.6916303670001, -33.77936728914894],
@@ -103,7 +105,7 @@ curl -X POST http://localhost:3000/api/suggest \
 import { LocationServiceConnector } from '@chaosity/location-client/server'
 
 // Auto-detects from environment variables:
-// LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET
+// LOCATION_API_URL, LOCATION_CLIENT_ID, LOCATION_CLIENT_SECRET, LOCATION_ORIGIN
 const connector = new LocationServiceConnector()
 ```
 
@@ -116,12 +118,13 @@ const result = await connector.send(
 )
 ```
 
-### Custom Headers (Optional)
+### Forwarding the caller's Origin (Optional)
 ```typescript
-// Pass custom headers like Origin for CORS
+// A per-call Origin beats LOCATION_ORIGIN. Send one only when the incoming
+// request has one: `${req.headers.origin}` would send the string "undefined".
 const result = await connector.send(
   new SearchTextCommand({ QueryText: 'Space Needle' }),
-  { headers: { 'Origin': req.headers.origin } }
+  req.headers.origin ? { headers: { Origin: req.headers.origin } } : undefined,
 )
 ```
 

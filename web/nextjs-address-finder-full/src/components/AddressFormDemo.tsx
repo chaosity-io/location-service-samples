@@ -20,6 +20,10 @@ export function AddressFormDemo({
     null,
   )
   const [apiMode, setApiMode] = useState<ApiMode>(defaultApiMode)
+  // Off by default, as in the library: every verification is billed, whether
+  // or not the address verifies.
+  const [verify, setVerify] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const country = useCountry()
 
   // The form's country list follows the global selection: a scoped
@@ -33,10 +37,20 @@ export function AddressFormDemo({
       : undefined
 
   const handleSubmit: SubmitHandler = async (getData) => {
-    // No argument since address-form 0.4.0: the API never forwards
-    // IntendedUse (RFC-0001), so the form stopped asking for it.
-    const data = await getData()
-    setSubmittedData(data)
+    setSubmitError(null)
+    try {
+      // No argument since address-form 0.4.0: the API never forwards
+      // IntendedUse, so the form stopped asking for it. With `verify` on,
+      // getData() also sends the picked PlaceId to POST /address/verify and
+      // adds `verified` and `verification`, the one result you may store.
+      const data = await getData()
+      setSubmittedData(data)
+    } catch (err) {
+      // A failed verification rejects getData(); the form's banner shows it
+      // too. It is not kept, so the next submit tries again.
+      setSubmittedData(null)
+      setSubmitError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   const modeButton = (mode: ApiMode, label: string) => (
@@ -59,15 +73,20 @@ export function AddressFormDemo({
         <div className="text-sm text-gray-600">
           {apiMode === 'autocomplete' ? (
             <>
-              <strong>Core mode:</strong> <code>/address/autocomplete</code> +{' '}
-              <code>/address/place</code> +{' '}
+              <strong>Autocomplete:</strong> <code>/address/autocomplete</code>{' '}
+              + <code>/address/place</code> +{' '}
               <code>/address/search/reverse-geocode</code>
             </>
           ) : (
             <>
-              <strong>Pro mode:</strong> <code>/address/suggestion</code> +{' '}
-              <code>/address/place</code> +{' '}
-              <code>/address/search/reverse-geocode</code>
+              <strong>Suggest:</strong> <code>/address/suggestion</code> (the
+              location button too) + <code>/address/place</code>
+            </>
+          )}
+          {verify && (
+            <>
+              {' '}
+              + <code>/address/verify</code> on submit
             </>
           )}
           <div className="mt-1 text-xs text-gray-500">
@@ -75,12 +94,25 @@ export function AddressFormDemo({
             {allowedCountries ? allowedCountries.join(', ') : 'all'}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">API mode:</span>
-          <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
-            {modeButton('autocomplete', 'Autocomplete')}
-            {modeButton('suggest', 'Suggest')}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">API mode:</span>
+            <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+              {modeButton('autocomplete', 'Autocomplete')}
+              {modeButton('suggest', 'Suggest')}
+            </div>
           </div>
+          <label
+            className="flex items-center gap-1.5 text-xs text-gray-600"
+            title="Each verification is billed, whether or not the address verifies"
+          >
+            <input
+              type="checkbox"
+              checked={verify}
+              onChange={(e) => setVerify(e.target.checked)}
+            />
+            Verify on submit (billed)
+          </label>
         </div>
       </div>
 
@@ -93,6 +125,7 @@ export function AddressFormDemo({
           key={`${apiMode}:${allowedCountries?.join(',') ?? 'all'}`}
           onSubmit={handleSubmit}
           allowedCountries={allowedCountries}
+          verify={verify}
         >
           <div className="space-y-3">
             <AddressForm.AddressField
@@ -136,6 +169,15 @@ export function AddressFormDemo({
           </div>
         </AddressForm>
       </div>
+
+      {submitError && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          {submitError}
+        </div>
+      )}
 
       {submittedData && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

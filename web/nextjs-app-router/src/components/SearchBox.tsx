@@ -21,7 +21,9 @@ import { useState } from 'react'
  *  - MaxResults: limit number of results (default 5)
  *
  * Returns: ResultItems[] with Title, Address, Position, PlaceId,
- *          Categories, ContactInformation, OpeningHours, etc.
+ *          Categories, Distance, FoodTypes. Contacts, OpeningHours,
+ *          AccessPoints and TimeZone come back only when AdditionalFeatures
+ *          asks for them: rich place data, a plan feature.
  *
  * @see https://docs.chaosity.cloud/docs/client-libraries
  */

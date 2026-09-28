@@ -55,7 +55,7 @@ const tabs = [
     id: 'getplace',
     label: 'GetPlace',
     description:
-      'Get full details (contacts, hours, categories) for a place by its PlaceId.',
+      'Get the full address, position and categories for a place by its PlaceId.',
     component: GetPlaceBox,
   },
 ]

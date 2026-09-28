@@ -10,9 +10,15 @@ import {
 import { useLocationClient } from '@chaosity/location-client-react'
 import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+// MapLibre 6 runs its worker from a file the app serves, and cannot find one
+// under a bundler on its own: without this the map mounts and draws no tile.
+// `scripts/copy-maplibre-worker.mjs` puts it in public/maplibre/ before every
+// `dev` and `build`.
+maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
@@ -41,6 +47,10 @@ export default function MapDemo() {
   const [politicalView, setPoliticalView] = useState('')
   const [filterCountry, setFilterCountry] = useState<string>('')
   const [language, setLanguage] = useState<string>('en')
+  const [styleError, setStyleError] = useState<string | null>(null)
+  // The style URL and language on the map now, so the style effect does not
+  // fetch (and bill) the same descriptor again when it first runs.
+  const appliedStyle = useRef('')
 
   // MapLibre style expressions are recursive JSON arrays (Mapbox Style Spec)
   type StyleExpression = unknown[] | string | number | boolean | null
@@ -145,8 +155,22 @@ export default function MapDemo() {
           Accept: 'application/json',
         },
       })
-      const style = await res.json()
-      return setPreferredLanguage(style, language)
+      // A refusal is not a style. The API's is `{ code, message }` JSON (a
+      // plan feature the application lacks is 403 FeatureNotEntitledException,
+      // and its message names the feature), but one from a proxy or gateway
+      // may not be JSON at all, so read the status before the body.
+      if (!res.ok) {
+        const text = await res.text()
+        let detail = `${res.status} ${res.statusText}`
+        try {
+          const body = JSON.parse(text)
+          detail = `${body.code ?? res.status}: ${body.message ?? res.statusText}`
+        } catch {
+          /* not JSON: keep the status line */
+        }
+        throw new Error(detail)
+      }
+      return setPreferredLanguage(await res.json(), language)
     },
     [getToken, setPreferredLanguage],
   )
@@ -165,7 +189,15 @@ export default function MapDemo() {
           QueryComponents: { Country: countryCode },
         }
         const command = new GeocodeCommand(commandInput)
-        const response: GeocodeCommandOutput = await client.send(command)
+        // Called from an effect, so nothing above would catch a failure: log
+        // it here rather than leave an unhandled rejection.
+        let response: GeocodeCommandOutput
+        try {
+          response = await client.send(command)
+        } catch (err) {
+          console.error('Country geocode error:', err)
+          return
+        }
 
         if (response.ResultItems && response.ResultItems.length > 0) {
           const countryGeocode = response.ResultItems.find((item) =>
@@ -190,6 +222,7 @@ export default function MapDemo() {
 
   useEffect(() => {
     if (!mapContainer.current) return
+    let cancelled = false
 
     async function initMap() {
       if (clientLoading || !client || !getToken) return
@@ -211,15 +244,21 @@ export default function MapDemo() {
           map.current = null
         }
 
-        const params = new URLSearchParams({
-          'color-scheme': colorScheme,
-          terrain: 'Hillshade',
-        })
+        // The first map asks only for what every plan with the map routes has:
+        // hillshading (`terrain`), like Satellite, Hybrid and a political view,
+        // is a plan feature, and a style that asks for one the plan lacks is
+        // refused whole. The style controls change it afterwards.
+        const params = new URLSearchParams({ 'color-scheme': colorScheme })
         const styleUrl = `${API_URL}/maps/${mapStyle}/descriptor?${params.toString()}`
+        // Fetched here rather than handed to MapLibre as a URL, so a refusal
+        // lands in the catch below and is shown, not only logged.
+        const style = await getStyleWithPreferredLanguage(styleUrl, language)
+        if (cancelled) return
+        appliedStyle.current = `${styleUrl}|${language}`
 
         const mapInstance = new maplibregl.Map({
           container: mapContainer.current!,
-          style: styleUrl,
+          style: style as maplibregl.StyleSpecification,
           center: mapState.current.center,
           zoom: mapState.current.zoom,
           minZoom: 3,
@@ -286,21 +325,17 @@ export default function MapDemo() {
     initMap()
 
     return () => {
+      cancelled = true
       if (map.current) {
         map.current.remove()
         map.current = null
       }
     }
+    // Built once per client. A style change must not rebuild the map: a
+    // refused style would then leave no map at all. The effect below swaps the
+    // style in place and keeps the last one when a change is refused.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    clientLoading,
-    API_URL,
-    client,
-    clientError,
-    getToken,
-    colorScheme,
-    mapStyle,
-  ])
+  }, [clientLoading, API_URL, client, clientError, getToken])
 
   useEffect(() => {
     const filterCountryChanged = prevFilterCountryRef.current !== filterCountry
@@ -344,16 +379,36 @@ export default function MapDemo() {
       })
 
       const styleUrl = `${API_URL}/maps/${mapStyle}/descriptor?${params.toString()}`
+      // Already on the map (the first load, or a refused change undone): no
+      // second, billed fetch, and no refusal left on screen.
+      if (appliedStyle.current === `${styleUrl}|${language}`) {
+        setStyleError(null)
+        return
+      }
+      // A later change supersedes this one: its answer must not land after it.
+      let cancelled = false
       const setStyle = async (styleUrl: string, language: string) => {
         try {
           const style = await getStyleWithPreferredLanguage(styleUrl, language)
+          if (cancelled) return
           map.current?.setStyle(style as maplibregl.StyleSpecification)
+          appliedStyle.current = `${styleUrl}|${language}`
+          setStyleError(null)
         } catch (error) {
+          if (cancelled) return
           console.error('Failed to set map style:', error)
+          setStyleError(
+            error instanceof Error
+              ? error.message
+              : 'The map style was refused',
+          )
         }
       }
 
       setStyle(styleUrl, language)
+      return () => {
+        cancelled = true
+      }
     }
   }, [
     mapStyle,
@@ -492,6 +547,16 @@ export default function MapDemo() {
           </div>
         </div>
       </div>
+
+      {styleError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          <strong>Map not updated:</strong> {styleError} The map shows the last
+          style that loaded.
+        </div>
+      )}
 
       <div className="relative h-150 w-full overflow-hidden rounded-lg bg-white shadow-lg">
         {loading && (

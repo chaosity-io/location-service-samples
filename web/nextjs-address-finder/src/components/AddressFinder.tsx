@@ -6,6 +6,7 @@ import {
   AutocompleteCommandOutput,
   AutocompleteResultItem,
   createTransformRequest,
+  fetchMapStyle,
   GeocodeCommand,
   GeocodeCommandInput,
   GeocodeCommandOutput,
@@ -15,9 +16,15 @@ import {
   ReverseGeocodeCommandOutput,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+// MapLibre 6 runs its worker from a file the app serves, and cannot find one
+// under a bundler on its own: without this the map mounts and draws no tile.
+// `scripts/copy-maplibre-worker.mjs` puts it in public/maplibre/ before every
+// `dev` and `build`.
+maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
 
@@ -63,6 +70,7 @@ export default function AddressFinder() {
 
   useEffect(() => {
     if (!mapContainer.current) return
+    let cancelled = false
 
     async function initMap() {
       if (clientLoading || !client || !getToken) return
@@ -73,15 +81,18 @@ export default function AddressFinder() {
       }
 
       try {
-        const params = new URLSearchParams({
-          'color-scheme': 'Light',
-          terrain: 'Hillshade',
+        // Fetched here rather than handed to MapLibre as a URL, so a refusal
+        // lands in the catch below and is shown, not only logged. Hillshading
+        // (`terrain`) is a plan feature: a style that asks for one the
+        // application's plan lacks is refused whole, so this asks for none.
+        const style = await fetchMapStyle(API_URL, 'Standard', getToken, {
+          colorScheme: 'Light',
         })
-        const styleUrl = `${API_URL}/maps/Standard/descriptor?${params.toString()}`
+        if (cancelled) return
 
         const mapInstance = new maplibregl.Map({
           container: mapContainer.current!,
-          style: styleUrl,
+          style,
           center: mapState.current.center,
           zoom: mapState.current.zoom,
           transformRequest: createTransformRequest(
@@ -118,6 +129,7 @@ export default function AddressFinder() {
     initMap()
 
     return () => {
+      cancelled = true
       if (marker.current) marker.current.remove()
       if (map.current) map.current.remove()
     }
@@ -180,17 +192,21 @@ export default function AddressFinder() {
       }
 
       debounceTimer.current = setTimeout(async () => {
-        // Get map center and reverse geocode to find country
-        const center = map.current!.getCenter()
-        const reverseCmd = new ReverseGeocodeCommand({
-          QueryPosition: [center.lng, center.lat],
-          Language: 'en',
-        })
-        const reverseRes: ReverseGeocodeCommandOutput =
-          await client.send(reverseCmd)
-        const countryCode = reverseRes.ResultItems?.[0]?.Address?.Country?.Code3
-
+        // Inside the try with the search itself: a failure here (offline, a
+        // refused request) is a LocationServiceException to log, not an
+        // unhandled rejection from a timer.
         try {
+          // Get map center and reverse geocode to find country
+          const center = map.current!.getCenter()
+          const reverseCmd = new ReverseGeocodeCommand({
+            QueryPosition: [center.lng, center.lat],
+            Language: 'en',
+          })
+          const reverseRes: ReverseGeocodeCommandOutput =
+            await client.send(reverseCmd)
+          const countryCode =
+            reverseRes.ResultItems?.[0]?.Address?.Country?.Code3
+
           if (searchMode === 'geocode') {
             const commandInput: GeocodeCommandInput = {
               QueryText: searchQuery,
