@@ -78,12 +78,12 @@ nextjs-map-demo/
    - Token is passed to client via `LocationClientProvider`
 
 2. **Client-side Map:**
-   - `MapDemo` component initializes MapLibre GL map
+   - `MapDemo` component initializes MapLibre GL map with `createTransformRequest` for authenticated tile requests, and `refreshTokenOnUnauthorized` with the provider's `refreshToken`, so a tile the API refuses is reloaded with a new token (from `@chaosity/location-client-react` 0.10.1 and `@chaosity/location-client` 0.13.1)
    - `GeoPlaces` adapter connects Location Service to MapLibre Geocoder
    - Search box provides autocomplete geocoding
 
 3. **Token Management:**
-   - Provider automatically refreshes tokens before expiry
+   - Provider automatically refreshes tokens before expiry, and replaces one the API refuses when the map asks (`refreshToken`)
    - No manual token handling needed in components
 
 ## Usage

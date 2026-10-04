@@ -4,6 +4,7 @@ import {
   GeoPlaces,
   GeocodeCommand,
   createTransformRequest,
+  refreshTokenOnUnauthorized,
   type GeocodeCommandInput,
   type GeocodeCommandOutput,
 } from '@chaosity/location-client'
@@ -12,7 +13,7 @@ import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // MapLibre 6 runs its worker from a file the app serves, and cannot find one
 // under a bundler on its own: without this the map mounts and draws no tile.
@@ -37,9 +38,17 @@ export default function MapDemo() {
   const {
     client,
     getToken,
+    refreshToken,
     loading: clientLoading,
     error: clientError,
   } = useLocationClient()
+  // A tile the API refuses asks the provider for a new token once, and is
+  // reloaded with it. One object per configuration: the client library tracks
+  // a refused token per object.
+  const tokens = useMemo(
+    () => ({ getToken, refreshToken }),
+    [getToken, refreshToken],
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mapStyle, setMapStyle] = useState('Standard')
@@ -148,13 +157,21 @@ export default function MapDemo() {
 
   const getStyleWithPreferredLanguage = useCallback(
     async (styleUrl: string, language: string) => {
-      const token = getToken()
-      const res = await fetch(styleUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      })
+      const send = (token: string | undefined) =>
+        fetch(styleUrl, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        })
+      const inHand = getToken()
+      let res = await send(inHand)
+      // Refused before its exp (revoked, or a rotated secret): ask the
+      // provider once for a new token, and send again only with a different one.
+      if (res.status === 401) {
+        const next = await refreshToken()
+        if (next && next !== inHand) res = await send(next)
+      }
       // A refusal is not a style. The API's is `{ code, message }` JSON (a
       // plan feature the application lacks is 403 FeatureNotEntitledException,
       // and its message names the feature), but one from a proxy or gateway
@@ -172,7 +189,7 @@ export default function MapDemo() {
       }
       return setPreferredLanguage(await res.json(), language)
     },
-    [getToken, setPreferredLanguage],
+    [getToken, refreshToken, setPreferredLanguage],
   )
 
   const flyToCountryCenter = useCallback(
@@ -223,6 +240,7 @@ export default function MapDemo() {
   useEffect(() => {
     if (!mapContainer.current) return
     let cancelled = false
+    let stopRefreshing: (() => void) | undefined
 
     async function initMap() {
       if (clientLoading || !client || !getToken) return
@@ -267,6 +285,11 @@ export default function MapDemo() {
             getToken,
           ) as maplibregl.RequestTransformFunction,
         })
+        stopRefreshing = refreshTokenOnUnauthorized(
+          mapInstance,
+          API_URL,
+          tokens,
+        )
 
         mapInstance.addControl(
           new maplibregl.NavigationControl({
@@ -326,6 +349,7 @@ export default function MapDemo() {
 
     return () => {
       cancelled = true
+      stopRefreshing?.()
       if (map.current) {
         map.current.remove()
         map.current = null
@@ -335,7 +359,7 @@ export default function MapDemo() {
     // refused style would then leave no map at all. The effect below swaps the
     // style in place and keeps the last one when a change is refused.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientLoading, API_URL, client, clientError, getToken])
+  }, [clientLoading, API_URL, client, clientError, getToken, tokens])
 
   useEffect(() => {
     const filterCountryChanged = prevFilterCountryRef.current !== filterCountry

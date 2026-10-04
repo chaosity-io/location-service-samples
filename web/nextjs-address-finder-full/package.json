@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@chaosity/address-form": "^0.7.0",
-    "@chaosity/location-client": "^0.13.0",
-    "@chaosity/location-client-react": "^0.10.0",
+    "@chaosity/location-client": "^0.13.1",
+    "@chaosity/location-client-react": "^0.10.1",
     "@maplibre/maplibre-gl-geocoder": "^1.9.4",
     "maplibre-gl": "^6.4.1",
     "next": "^16.2.0",

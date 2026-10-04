@@ -14,8 +14,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
-    "@chaosity/location-client": "^0.13.0",
-    "@chaosity/location-client-react": "^0.10.0",
+    "@chaosity/location-client": "^0.13.1",
+    "@chaosity/location-client-react": "^0.10.1",
     "maplibre-gl": "^6.4.1",
     "next": "^15.0.0",
     "react": "^19.0.0",

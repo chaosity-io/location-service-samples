@@ -7,6 +7,7 @@ import {
   GeocodeCommandOutput,
   createTransformRequest,
   fetchMapStyle,
+  refreshTokenOnUnauthorized,
   type MapStyle,
 } from '@chaosity/location-client'
 import {
@@ -17,7 +18,7 @@ import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder'
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // MapLibre 6 runs its worker from a file the app serves, and cannot find one
 // under a bundler on its own: without this the map mounts and draws no tile.
@@ -37,9 +38,17 @@ export default function MapDemo() {
   const {
     client,
     getToken,
+    refreshToken,
     loading: clientLoading,
     error: clientError,
   } = useLocationClient()
+  // A style or tile the API refuses asks the provider for a new token once,
+  // and is asked for again with it. One object per configuration: the client
+  // library tracks a refused token per object.
+  const tokens = useMemo(
+    () => ({ getToken, refreshToken }),
+    [getToken, refreshToken],
+  )
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -151,11 +160,12 @@ export default function MapDemo() {
     }
 
     let cancelled = false
+    let stopRefreshing: (() => void) | undefined
 
     ;(async () => {
       try {
         // Plain Standard / Light: nothing any plan with the map routes lacks.
-        const style = await fetchMapStyle(API_URL, mapStyle, getToken, {
+        const style = await fetchMapStyle(API_URL, mapStyle, tokens, {
           ...styleOptions,
           language: languageRef.current,
         })
@@ -175,6 +185,7 @@ export default function MapDemo() {
             getToken,
           ) as maplibregl.RequestTransformFunction,
         })
+        stopRefreshing = refreshTokenOnUnauthorized(instance, API_URL, tokens)
 
         instance.addControl(
           new maplibregl.NavigationControl({
@@ -234,6 +245,7 @@ export default function MapDemo() {
 
     return () => {
       cancelled = true
+      stopRefreshing?.()
       if (map.current) {
         map.current.remove()
         map.current = null
@@ -254,7 +266,7 @@ export default function MapDemo() {
     // A later change supersedes this one: its answer must not land after it.
     let cancelled = false
 
-    fetchMapStyle(API_URL, mapStyle, getToken, {
+    fetchMapStyle(API_URL, mapStyle, tokens, {
       ...styleOptions,
       language: languageRef.current,
     })
@@ -282,7 +294,7 @@ export default function MapDemo() {
     // The controls' state is folded into styleKey; listing it too would
     // double-run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [styleKey, loading, getToken])
+  }, [styleKey, loading, tokens])
 
   // Country filter and language for geocoder
   useEffect(() => {

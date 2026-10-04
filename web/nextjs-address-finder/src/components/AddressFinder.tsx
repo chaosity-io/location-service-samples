@@ -12,13 +12,14 @@ import {
   GeocodeCommandOutput,
   GetPlaceCommand,
   GetPlaceCommandOutput,
+  refreshTokenOnUnauthorized,
   ReverseGeocodeCommand,
   ReverseGeocodeCommandOutput,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // MapLibre 6 runs its worker from a file the app serves, and cannot find one
 // under a bundler on its own: without this the map mounts and draws no tile.
@@ -51,9 +52,17 @@ export default function AddressFinder() {
   const {
     client,
     getToken,
+    refreshToken,
     loading: clientLoading,
     error: clientError,
   } = useLocationClient()
+  // A style or tile the API refuses asks the provider for a new token once,
+  // and is asked for again with it. One object per configuration: the client
+  // library tracks a refused token per object.
+  const tokens = useMemo(
+    () => ({ getToken, refreshToken }),
+    [getToken, refreshToken],
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -71,6 +80,7 @@ export default function AddressFinder() {
   useEffect(() => {
     if (!mapContainer.current) return
     let cancelled = false
+    let stopRefreshing: (() => void) | undefined
 
     async function initMap() {
       if (clientLoading || !client || !getToken) return
@@ -85,7 +95,7 @@ export default function AddressFinder() {
         // lands in the catch below and is shown, not only logged. Hillshading
         // (`terrain`) is a plan feature: a style that asks for one the
         // application's plan lacks is refused whole, so this asks for none.
-        const style = await fetchMapStyle(API_URL, 'Standard', getToken, {
+        const style = await fetchMapStyle(API_URL, 'Standard', tokens, {
           colorScheme: 'Light',
         })
         if (cancelled) return
@@ -100,6 +110,11 @@ export default function AddressFinder() {
             getToken,
           ) as maplibregl.RequestTransformFunction,
         })
+        stopRefreshing = refreshTokenOnUnauthorized(
+          mapInstance,
+          API_URL,
+          tokens,
+        )
 
         mapInstance.addControl(new maplibregl.NavigationControl(), 'top-right')
         mapInstance.addControl(new maplibregl.ScaleControl())
@@ -130,11 +145,12 @@ export default function AddressFinder() {
 
     return () => {
       cancelled = true
+      stopRefreshing?.()
       if (marker.current) marker.current.remove()
       if (map.current) map.current.remove()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientLoading, clientError, getToken])
+  }, [clientLoading, clientError, getToken, tokens])
 
   const mapClickHandler = useCallback(
     async (e: maplibregl.MapMouseEvent) => {

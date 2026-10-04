@@ -48,7 +48,7 @@ npm run dev                    # http://localhost:3001
 |---|---|---|
 | `LOCATION_API_URL` | server | API base URL: the endpoint shown for your application |
 | `LOCATION_CLIENT_ID` / `LOCATION_CLIENT_SECRET` | server | the application's credentials from the portal — exchanged for a short-lived bearer token in a server action; never sent to the browser |
-| `NEXT_PUBLIC_LOCATION_API_URL` | browser | the same base URL, for MapLibre style/tile/glyph/sprite requests and the static-map fetch (the token is attached per request) |
+| `NEXT_PUBLIC_LOCATION_API_URL` | browser | the same base URL, for MapLibre style/tile/glyph/sprite requests and the static-map fetch (the token is attached per request, and replaced once when the API refuses it) |
 | `LOCATION_ALLOWED_ORIGIN` | server, optional | `Origin` the server-side playground sends when the incoming request has none |
 
 The application's **allowed domain** in the portal must match where this app
