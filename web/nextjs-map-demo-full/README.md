@@ -74,7 +74,7 @@ nextjs-map-demo/
 ## How It Works
 
 1. **Server-side Authentication:**
-   - `getLocationConfig()` Server Action fetches OAuth2 token
+   - `getLocationConfig()` Server Action fetches OAuth2 token, and replaces it when the provider (from `@chaosity/location-client-react` 0.10.0) reports it refused (`{ refusedToken }`)
    - Token is passed to client via `LocationClientProvider`
 
 2. **Client-side Map:**

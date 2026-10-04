@@ -27,11 +27,19 @@ const credentials = {
 
 console.log('Token server ready')
 
-// Token endpoint for SPA
-app.get('/api/token', async (req, res) => {
+// Token endpoint for the SPA. The body may name `refusedToken`, a token the
+// API has refused: getClientConfig caches one token and would hand that same
+// one back, so it is replaced, but only when it is the one refused. That mints
+// once per refused token, and nothing for a report of any other; it does not
+// stop a caller echoing the token it holds, so rate-limit the route if that
+// matters.
+app.post('/api/token', async (req, res) => {
   try {
-    // getClientConfig handles token caching and refresh internally
-    const config = await getClientConfig(credentials)
+    const refused: unknown = req.body?.refusedToken
+    let config = await getClientConfig(credentials)
+    if (typeof refused === 'string' && refused === config.token) {
+      config = await getClientConfig({ ...credentials, forceRefresh: true })
+    }
 
     res.json({
       access_token: config.token,

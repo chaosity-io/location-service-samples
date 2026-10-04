@@ -9,7 +9,7 @@ Frontend (SPA)          Backend (Express)       Location API
 ─────────────          ─────────────────       ─────────────
 index.html             server.ts
 app.js                 ↓
-  │                    GET /api/token
+  │                    POST /api/token
   ├─────────────────> (generates token) ───────> OAuth2
   │                    ↓
   │ {token, expires}   Returns token
@@ -28,22 +28,36 @@ app.js                 ↓
 - No server-side runtime (no Server Actions)
 - Must use a separate backend for token generation
 - Frontend caches tokens manually with a 60-second refresh buffer
+- After a 401 it asks once for a replacement, naming the refused token, and retries only with a different one
 
 ### Token Caching in Frontend
 ```javascript
 let tokenCache = null
 const REFRESH_BUFFER_MS = 60_000
 
-async function getToken() {
-  if (tokenCache && Date.now() < tokenCache.expires_at - REFRESH_BUFFER_MS) {
+async function getToken(refusedToken) {
+  if (
+    !refusedToken &&
+    tokenCache &&
+    Date.now() < tokenCache.expires_at - REFRESH_BUFFER_MS
+  ) {
     return tokenCache  // Reuse cached token
   }
 
-  const response = await fetch('http://localhost:3001/api/token')
+  // In the body, not the URL, so the token stays out of access logs.
+  const response = await fetch('http://localhost:3001/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(refusedToken ? { refusedToken } : {}),
+  })
   tokenCache = await response.json()
   return tokenCache
 }
 ```
+
+The API refuses a token before its expiry when it is revoked or its secret is
+rotated. `postWithToken` in `app.js` then calls `getToken(refused)` once and
+retries only if the backend answered with a different token.
 
 ### Backend Token Endpoint
 ```typescript
@@ -55,9 +69,13 @@ const credentials = {
   clientSecret: process.env.LOCATION_CLIENT_SECRET!,
 }
 
-app.get('/api/token', async (req, res) => {
-  // getClientConfig handles token caching and refresh internally
-  const config = await getClientConfig(credentials)
+app.post('/api/token', async (req, res) => {
+  // getClientConfig caches one token, and would hand back the one the browser
+  // saw refused: replace it, but only when it is that one.
+  let config = await getClientConfig(credentials)
+  if (req.body?.refusedToken === config.token) {
+    config = await getClientConfig({ ...credentials, forceRefresh: true })
+  }
   res.json({
     access_token: config.token,
     expires_at: config.expiresAt ?? null,

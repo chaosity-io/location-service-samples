@@ -2,18 +2,27 @@
 let tokenCache = null
 const REFRESH_BUFFER_MS = 60_000 // Refresh 60s before expiry
 
-// Get token from backend (with caching)
-async function getToken() {
+// Get token from backend (with caching). `refusedToken` is a token the API
+// has just refused: the backend replaces it rather than hand it back.
+async function getToken(refusedToken) {
   // Return cached token if still valid (with buffer to avoid mid-request expiry)
-  if (tokenCache && Date.now() < tokenCache.expires_at - REFRESH_BUFFER_MS) {
+  if (
+    !refusedToken &&
+    tokenCache &&
+    Date.now() < tokenCache.expires_at - REFRESH_BUFFER_MS
+  ) {
     console.log('Using cached token')
     return tokenCache
   }
 
   console.log('Fetching new token from backend')
-  
-  // Fetch new token from backend
-  const response = await fetch('http://localhost:3001/api/token')
+
+  // In the body, not the URL, so the token stays out of access logs.
+  const response = await fetch('http://localhost:3001/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(refusedToken ? { refusedToken } : {}),
+  })
   if (!response.ok) {
     throw new Error('Failed to get token')
   }
@@ -22,23 +31,34 @@ async function getToken() {
   return tokenCache
 }
 
-// Search places
-async function searchPlaces(query) {
-  try {
-    // Get token (automatically cached)
-    const { access_token, api_url } = await getToken()
-
-    // Make API request with token
-    const response = await fetch(`${api_url}/address/search/text`, {
+// The API refuses a token before its expiry when it is revoked or its secret
+// is rotated. Ask once for a replacement, and retry only with a different one.
+async function postWithToken(path, body) {
+  const send = ({ access_token, api_url }) =>
+    fetch(`${api_url}${path}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        QueryText: query,
-        MaxResults: 5
-      })
+      body: JSON.stringify(body)
+    })
+
+  const first = await getToken()
+  const response = await send(first)
+  if (response.status !== 401) return response
+
+  const fresh = await getToken(first.access_token)
+  return fresh.access_token === first.access_token ? response : send(fresh)
+}
+
+// Search places
+async function searchPlaces(query) {
+  try {
+    // Make API request with the cached token, replaced once if refused
+    const response = await postWithToken('/address/search/text', {
+      QueryText: query,
+      MaxResults: 5
     })
 
     if (!response.ok) {

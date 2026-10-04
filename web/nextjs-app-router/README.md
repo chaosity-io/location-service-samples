@@ -89,12 +89,19 @@ src/
 'use server'
 import { getClientConfig } from '@chaosity/location-client/server'
 
-export async function getLocationConfig() {
-  return getClientConfig({
-    apiUrl: process.env.LOCATION_API_URL!,
-    clientId: process.env.LOCATION_CLIENT_ID!,
-    clientSecret: process.env.LOCATION_CLIENT_SECRET!
-  })
+const credentials = () => ({
+  apiUrl: process.env.LOCATION_API_URL!,
+  clientId: process.env.LOCATION_CLIENT_ID!,
+  clientSecret: process.env.LOCATION_CLIENT_SECRET!
+})
+
+// After the API refuses a token, the provider asks again with
+// { refusedToken }. Replace the cached token only when it is that one.
+export async function getLocationConfig(request?: { refusedToken?: string }) {
+  const config = await getClientConfig(credentials())
+  return request?.refusedToken === config.token
+    ? getClientConfig({ ...credentials(), forceRefresh: true })
+    : config
 }
 ```
 
