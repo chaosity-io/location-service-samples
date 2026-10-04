@@ -36,19 +36,27 @@ its last style.
 
 1. Server Action fetches OAuth2 token via `getClientConfig()`, and replaces it when the provider (from `@chaosity/location-client-react` 0.10.0) reports it refused (`{ refusedToken }`)
 2. `LocationClientProvider` manages token lifecycle (auto-refresh before expiry)
-3. `MapDemo` initializes MapLibre GL map with `createTransformRequest` for authenticated tile requests
+3. `MapDemo` initializes MapLibre GL map with `createTransformRequest` for authenticated tile requests, and `refreshTokenOnUnauthorized` with the provider's `refreshToken`, so a tile the API refuses is reloaded with a new token (from `@chaosity/location-client-react` 0.10.1 and `@chaosity/location-client` 0.13.1)
 4. `GeoPlaces` adapter connects Location Service to MapLibre Geocoder for search
 
 ## API Usage
 
 ### Map Tiles with Authentication
 ```typescript
-import { createTransformRequest } from '@chaosity/location-client'
+import {
+  createTransformRequest,
+  fetchMapStyle,
+  refreshTokenOnUnauthorized,
+} from '@chaosity/location-client'
 
+// tokens: useMemo(() => ({ getToken, refreshToken }), [getToken, refreshToken])
+// with both from useLocationClient(). A style or tile the API refuses is then
+// asked for again with a new token; a style given as a URL would not be.
 const map = new maplibregl.Map({
-  style: `${apiUrl}/maps/Standard/descriptor?color-scheme=Light`,
+  style: await fetchMapStyle(apiUrl, 'Standard', tokens, { colorScheme: 'Light' }),
   transformRequest: createTransformRequest(apiUrl, getToken),
 })
+const stopRefreshing = refreshTokenOnUnauthorized(map, apiUrl, tokens)
 ```
 
 ### Geocoder Integration

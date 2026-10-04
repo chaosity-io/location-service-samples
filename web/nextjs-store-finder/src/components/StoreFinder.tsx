@@ -18,12 +18,13 @@ import {
   createTransformRequest,
   fetchMapStyle,
   GetPlaceCommand,
+  refreshTokenOnUnauthorized,
   ReverseGeocodeCommand,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // MapLibre 6 runs its worker from a file the app serves, and cannot find one
 // under a bundler on its own: without this the map mounts and draws no tile.
@@ -94,9 +95,17 @@ export default function StoreFinder() {
   const {
     client,
     getToken,
+    refreshToken,
     loading: clientLoading,
     error: clientError,
   } = useLocationClient()
+  // A style or tile the API refuses asks the provider for a new token once,
+  // and is asked for again with it. One object per configuration: the client
+  // library tracks a refused token per object.
+  const tokens = useMemo(
+    () => ({ getToken, refreshToken }),
+    [getToken, refreshToken],
+  )
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -370,6 +379,7 @@ export default function StoreFinder() {
     }
 
     let cancelled = false
+    let stopRefreshing: (() => void) | undefined
 
     ;(async () => {
       try {
@@ -377,7 +387,7 @@ export default function StoreFinder() {
         // features: a style that asks for one the application's plan lacks is
         // refused whole (403 FeatureNotEntitledException), and the store
         // finder would have no map at all.
-        const style = await fetchMapStyle(API_URL, 'Standard', getToken, {
+        const style = await fetchMapStyle(API_URL, 'Standard', tokens, {
           colorScheme: 'Light' as const,
         })
 
@@ -393,6 +403,7 @@ export default function StoreFinder() {
           maxPitch: 85,
           transformRequest: createTransformRequest(API_URL, getToken),
         })
+        stopRefreshing = refreshTokenOnUnauthorized(instance, API_URL, tokens)
 
         instance.addControl(
           new maplibregl.NavigationControl({ visualizePitch: true }),
@@ -425,6 +436,7 @@ export default function StoreFinder() {
 
     return () => {
       cancelled = true
+      stopRefreshing?.()
       if (map.current) {
         map.current.remove()
         map.current = null

@@ -12,7 +12,6 @@ import {
   setPoiVisibility,
   type StaticMapOptions,
 } from '@chaosity/location-client'
-import { useLocationClient } from '@chaosity/location-client-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_LOCATION_API_URL!
@@ -51,9 +50,10 @@ interface StyleStats {
  */
 export default function MapsShowcase() {
   const container = useRef<HTMLDivElement>(null)
-  const { getToken } = useLocationClient()
   const [settings] = useMapSettings()
-  const { map, ready, error: mapError } = useTestbedMap(container)
+  // The map's own token source: a static map the API refuses asks the provider
+  // for a new token once, under the same hold as the map's requests.
+  const { map, ready, error: mapError, tokens } = useTestbedMap(container)
 
   const [hidden, setHidden] = useState<ReadonlySet<PoiCategory>>(new Set())
   const [stats, setStats] = useState<StyleStats | null>(null)
@@ -133,7 +133,7 @@ export default function MapsShowcase() {
         pointsOfInterests: staticPois ? 'Enabled' : 'Disabled',
       }
       setStaticRequest(buildStaticMapUrl(API_URL, options))
-      const blob = await fetchStaticMap(API_URL, options, getToken)
+      const blob = await fetchStaticMap(API_URL, options, tokens)
       setStaticUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev)
         return URL.createObjectURL(blob)
@@ -143,7 +143,7 @@ export default function MapsShowcase() {
     } finally {
       setStaticBusy(false)
     }
-  }, [map, settings.style, settings.colorScheme, staticPois, getToken])
+  }, [map, settings.style, settings.colorScheme, staticPois, tokens])
 
   const descriptorUrl = buildMapStyleUrl(
     API_URL,

@@ -10,11 +10,12 @@ import {
   ReverseGeocodeCommand,
   createTransformRequest,
   fetchMapStyle,
+  refreshTokenOnUnauthorized,
 } from '@chaosity/location-client'
 import { useLocationClient } from '@chaosity/location-client-react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // MapLibre 6 runs its worker from a file the app serves, and cannot find one
 // under a bundler on its own: without this the map mounts and draws no tile.
@@ -83,7 +84,14 @@ interface AddressFormProps {
 }
 
 export function AddressForm({ address, onChange, label }: AddressFormProps) {
-  const { client, getToken } = useLocationClient()
+  const { client, getToken, refreshToken } = useLocationClient()
+  // A style or tile the API refuses asks the provider for a new token once,
+  // and is asked for again with it. One object per configuration: the client
+  // library tracks a refused token per object.
+  const tokens = useMemo(
+    () => ({ getToken, refreshToken }),
+    [getToken, refreshToken],
+  )
   const [suggestions, setSuggestions] = useState<GeocodeResultItem[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [validated, setValidated] = useState<ValidatedFields>(NO_VALIDATION)
@@ -145,10 +153,11 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
     if (!mapContainerRef.current || !client || !getToken) return
 
     let cancelled = false
+    let stopRefreshing: (() => void) | undefined
 
     async function initMap() {
       try {
-        const style = await fetchMapStyle(API_URL, 'Standard', getToken!, {
+        const style = await fetchMapStyle(API_URL, 'Standard', tokens, {
           colorScheme: 'Light',
         })
 
@@ -163,6 +172,7 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
           transformRequest: createTransformRequest(API_URL, getToken!),
           attributionControl: false,
         })
+        stopRefreshing = refreshTokenOnUnauthorized(map, API_URL, tokens)
 
         mapRef.current = map
       } catch {
@@ -174,10 +184,11 @@ export function AddressForm({ address, onChange, label }: AddressFormProps) {
 
     return () => {
       cancelled = true
+      stopRefreshing?.()
       mapRef.current?.remove()
       mapRef.current = null
     }
-  }, [client, getToken])
+  }, [client, getToken, tokens])
 
   // Update marker when position changes
   useEffect(() => {

@@ -3,6 +3,7 @@
 import {
   createTransformRequest,
   fetchMapStyle,
+  refreshTokenOnUnauthorized,
 } from '@chaosity/location-client'
 import {
   useLocationClient,
@@ -10,7 +11,7 @@ import {
 } from '@chaosity/location-client-react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { type RefObject, useEffect, useRef, useState } from 'react'
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { useCountry } from '../settings/country'
 import { descriptorOptions, useMapSettings } from '../settings/map-settings'
 
@@ -40,6 +41,15 @@ export interface TestbedMap {
   /** The first style has loaded; safe to add markers. */
   ready: boolean
   error: string | null
+  /**
+   * The provider's `{ getToken, refreshToken }`, the one object this map's
+   * requests use: a static map of it passes the same, so the client library's
+   * hold on a refused token is one hold.
+   */
+  tokens: {
+    getToken: () => string | undefined
+    refreshToken: () => Promise<string | undefined>
+  }
 }
 
 function explain(err: unknown, fallback: string): string {
@@ -72,9 +82,17 @@ export function useTestbedMap(
   const {
     client,
     getToken,
+    refreshToken,
     loading: clientLoading,
     error: clientError,
   } = useLocationClient()
+  // A style or tile the API refuses asks the provider for a new token once,
+  // and is asked for again with it. One object per configuration: the client
+  // library tracks a refused token per object.
+  const tokens = useMemo(
+    () => ({ getToken, refreshToken }),
+    [getToken, refreshToken],
+  )
   const [settings] = useMapSettings()
   const { code: countryCode, info: country } = useCountry()
 
@@ -131,12 +149,13 @@ export function useTestbedMap(
     if (!el || clientLoading || !client || clientError) return
     let cancelled = false
     let instance: maplibregl.Map | null = null
+    let stopRefreshing: (() => void) | undefined
 
     ;(async () => {
       try {
         const s = settingsRef.current
         const key = `${s.style}|${JSON.stringify(descriptorOptions(s))}`
-        const style = await fetchMapStyle(API_URL, s.style, getToken, {
+        const style = await fetchMapStyle(API_URL, s.style, tokens, {
           ...descriptorOptions(s),
           language: s.language,
         })
@@ -157,6 +176,7 @@ export function useTestbedMap(
             getToken,
           ) as maplibregl.RequestTransformFunction,
         })
+        stopRefreshing = refreshTokenOnUnauthorized(instance, API_URL, tokens)
         instance.addControl(
           new maplibregl.NavigationControl({ visualizePitch: true }),
           'top-right',
@@ -203,19 +223,20 @@ export function useTestbedMap(
 
     return () => {
       cancelled = true
+      stopRefreshing?.()
       instance?.remove()
       terrainControl.current = null
       setMap(null)
       setReady(false)
     }
-  }, [container, client, clientLoading, clientError, getToken])
+  }, [container, client, clientLoading, clientError, getToken, tokens])
 
   // ---- style settings changed → re-fetch the descriptor -------------------
   const styleKey = `${settings.style}|${JSON.stringify(descriptorOptions(settings))}`
   useEffect(() => {
     if (!map || appliedStyleKey.current === styleKey) return
     let cancelled = false
-    fetchMapStyle(API_URL, settings.style, getToken, {
+    fetchMapStyle(API_URL, settings.style, tokens, {
       ...descriptorOptions(settings),
       language: settingsRef.current.language,
     })
@@ -235,7 +256,7 @@ export function useTestbedMap(
     }
     // settings is folded into styleKey; listing it too would double-run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, styleKey, getToken])
+  }, [map, styleKey, tokens])
 
   // ---- language changed → rewrite labels in place --------------------------
   // The library hook re-applies on every style.load too, which is harmless
@@ -257,5 +278,5 @@ export function useTestbedMap(
     }
   }, [map, countryCode, country])
 
-  return { map, ready, error: error ?? clientError }
+  return { map, ready, error: error ?? clientError, tokens }
 }
