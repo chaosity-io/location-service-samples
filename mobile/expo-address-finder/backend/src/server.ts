@@ -10,11 +10,19 @@ app.use(cors())
 app.use(express.json())
 
 // Config endpoint — returns a short-lived token for the React Native client.
-// The client calls this on startup and whenever the token expires.
-app.get('/config', async (_req, res) => {
+// The client calls this on startup and whenever the token expires. After the
+// API refuses a token, the body names it as `refusedToken`: getClientConfig
+// caches one token and would hand that same one back, so it is replaced, but
+// only when it is the one refused.
+app.post('/config', async (req, res) => {
   try {
+    const refused: unknown = req.body?.refusedToken
     const config = await getClientConfig()
-    res.json(config)
+    res.json(
+      typeof refused === 'string' && refused === config.token
+        ? await getClientConfig({ forceRefresh: true })
+        : config,
+    )
   } catch (error) {
     console.error('Config error:', error)
     const err = error as { message?: string }
@@ -27,5 +35,5 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }))
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`Token backend running on http://localhost:${PORT}`)
-  console.log(`Config endpoint: http://localhost:${PORT}/config`)
+  console.log(`Config endpoint: POST http://localhost:${PORT}/config`)
 })

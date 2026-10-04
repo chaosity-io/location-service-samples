@@ -23,7 +23,7 @@ A React Native (Expo) sample that demonstrates address autocomplete, geocoding, 
 │    → autocomplete / geocode         │
 │    → MapLibre map (native module)   │
 └────────────────┬────────────────────┘
-                 │ GET /config
+                 │ POST /config
 ┌────────────────▼────────────────────┐
 │  Token backend (backend/)           │
 │  Express + getClientConfig()        │
@@ -42,7 +42,7 @@ A React Native (Expo) sample that demonstrates address autocomplete, geocoding, 
 - `LocationClientProvider` from `@chaosity/location-client-react` wraps the app and manages token lifecycle.
 - `useLocationClient()` provides `{ client, getToken, loading, error }` — same hook, same API.
 - `createTransformRequest` authenticates map tile requests identically to the web version.
-- The `getConfig` function fetches `{ apiUrl, token, expiresAt }` from the token backend (replaces the Next.js Server Action).
+- The `getConfig` function fetches `{ apiUrl, token, expiresAt }` from the token backend (replaces the Next.js Server Action). After the API refuses a token, the provider (from `@chaosity/location-client-react` 0.10.0) calls it with `{ refusedToken }`, and the backend replaces exactly that token.
 
 ## What is different from the web sample
 
@@ -54,7 +54,7 @@ A React Native (Expo) sample that demonstrates address autocomplete, geocoding, 
 | `maplibre-gl` (WebGL, browser) | `@maplibre/maplibre-react-native` (native module) |
 | `new maplibregl.Map({ transformRequest })` | `<MapView transformRequest={...}>` prop |
 | `import 'maplibre-gl/dist/maplibre-gl.css'` | Not needed |
-| Next.js Server Action for token | Express backend + `fetch('/config')` |
+| Next.js Server Action for token | Express backend + `POST /config` |
 
 ## Prerequisites
 

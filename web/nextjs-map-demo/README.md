@@ -34,7 +34,7 @@ its last style.
 
 ## How It Works
 
-1. Server Action fetches OAuth2 token via `getClientConfig()`
+1. Server Action fetches OAuth2 token via `getClientConfig()`, and replaces it when the provider (from `@chaosity/location-client-react` 0.10.0) reports it refused (`{ refusedToken }`)
 2. `LocationClientProvider` manages token lifecycle (auto-refresh before expiry)
 3. `MapDemo` initializes MapLibre GL map with `createTransformRequest` for authenticated tile requests
 4. `GeoPlaces` adapter connects Location Service to MapLibre Geocoder for search
