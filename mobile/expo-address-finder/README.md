@@ -40,8 +40,7 @@ A React Native (Expo) sample that demonstrates address autocomplete, geocoding, 
 
 - All four SDK commands (`AutocompleteCommand`, `GeocodeCommand`, `GetPlaceCommand`, `ReverseGeocodeCommand`) are imported from `@chaosity/location-client` with identical inputs and outputs.
 - `LocationClientProvider` from `@chaosity/location-client-react` wraps the app and manages token lifecycle.
-- `useLocationClient()` provides `{ client, getToken, loading, error }` — same hook, same API.
-- `createTransformRequest` authenticates map tile requests identically to the web version.
+- `useLocationClient()` provides `{ client, getToken, apiUrl, loading, error }` — same hook, same API. The map's style URL is built from `apiUrl`, so the URL and the token always come from the same configuration.
 - The `getConfig` function fetches `{ apiUrl, token, expiresAt }` from the token backend (replaces the Next.js Server Action). After the API refuses a token, the provider (from `@chaosity/location-client-react` 0.10.0) calls it with `{ refusedToken }`, and the backend replaces exactly that token.
 
 ## What is different from the web sample
@@ -52,7 +51,7 @@ A React Native (Expo) sample that demonstrates address autocomplete, geocoding, 
 | Tailwind CSS classes | `StyleSheet.create()` |
 | `navigator.geolocation` | `expo-location` `getCurrentPositionAsync()` |
 | `maplibre-gl` (WebGL, browser) | `@maplibre/maplibre-react-native` (native module) |
-| `new maplibregl.Map({ transformRequest })` | `<MapView transformRequest={...}>` prop |
+| `createTransformRequest` puts the token on each map request | No `transformRequest`: `MapLibreGL.addCustomHeader('Authorization', …)` puts it on every request the map makes, to any host, so the map loads only the API's own style. The provider refreshes its token without a re-render, so the app checks `getToken()` every 10 seconds and sets the header again when the token has changed |
 | `import 'maplibre-gl/dist/maplibre-gl.css'` | Not needed |
 | Next.js Server Action for token | Express backend + `POST /config` |
 
@@ -61,7 +60,7 @@ A React Native (Expo) sample that demonstrates address autocomplete, geocoding, 
 - Node.js 18+
 - Expo CLI: `npm install -g expo-cli` (or use `npx expo`)
 - A physical device or simulator/emulator — **Expo Go is not supported** (see note below)
-- Chaosity Location Service credentials from [portal.chaosity.cloud](https://portal.chaosity.cloud)
+- Chaosity Location Service credentials from [the portal](https://location-dashboard.chaosity.cloud)
 
 ## Quick start
 
@@ -103,6 +102,8 @@ npx expo run:android
 ```
 
 The `run:ios` / `run:android` commands build a development client that includes the native MapLibre module.
+
+`app/metro.config.js` puts `module` before `main` in Metro's `resolverMainFields`. `@chaosity/location-client` uses the AWS SDK, and only the SDK's ES build (`module`) carries its React Native runtime config; without the line, Metro reaches the Node build and fails on `node:https`.
 
 ## Note: expo-dev-client required (not Expo Go)
 

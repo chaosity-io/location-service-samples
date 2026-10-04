@@ -6,7 +6,7 @@ import { getConfig } from './src/lib/getConfig'
 
 export default function App() {
   return (
-    <LocationClientProvider getConfig={getConfig} refreshBuffer={120}>
+    <LocationClientProvider getConfig={getConfig}>
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
         <AddressFinder />

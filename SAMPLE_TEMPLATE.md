@@ -129,7 +129,7 @@ served, which `AGENTS.md` describes.
     "preview": "vite preview"
   },
   "dependencies": {
-    "@chaosity/location-client": "^0.11.0"
+    "@chaosity/location-client": "^<npm view @chaosity/location-client version>"
   },
   "devDependencies": {
     "vite": "^5.0.0"
@@ -153,7 +153,7 @@ served, which `AGENTS.md` describes.
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@chaosity/location-client-react": "^0.9.0"
+    "@chaosity/location-client-react": "^<npm view @chaosity/location-client-react version>"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
