@@ -21,6 +21,8 @@ export default [
     languageOptions: {
       globals: globals.node,
     },
+    // Metro and Babel load their configs as CommonJS.
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
     ignores: ['node_modules/**', '.expo/**', 'dist/**'],

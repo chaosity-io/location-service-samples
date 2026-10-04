@@ -3,7 +3,6 @@ import {
   AutocompleteCommandInput,
   AutocompleteCommandOutput,
   AutocompleteResultItem,
-  createTransformRequest,
   GeocodeCommand,
   GeocodeCommandInput,
   GeocodeCommandOutput,
@@ -15,6 +14,7 @@ import {
 import { useLocationClient } from '@chaosity/location-client-react'
 import MapLibreGL, {
   Camera,
+  type CameraRef,
   MapView,
   PointAnnotation,
 } from '@maplibre/maplibre-react-native'
@@ -29,8 +29,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-
-const API_URL = process.env.EXPO_PUBLIC_LOCATION_API_URL!
 
 // Required: call once before using any map features
 MapLibreGL.setAccessToken(null)
@@ -47,10 +45,11 @@ interface AddressResult {
 }
 
 export default function AddressFinder() {
-  const cameraRef = useRef<Camera>(null)
+  const cameraRef = useRef<CameraRef>(null)
   const {
     client,
     getToken,
+    apiUrl,
     loading: clientLoading,
     error: clientError,
   } = useLocationClient()
@@ -67,7 +66,32 @@ export default function AddressFinder() {
   )
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const styleUrl = `${API_URL}/maps/Standard/descriptor?color-scheme=Light&terrain=Hillshade`
+  // The URL comes from the provider with the token, so the two always belong
+  // to the same configuration.
+  const styleUrl = apiUrl
+    ? `${apiUrl}/maps/Standard/descriptor?color-scheme=Light`
+    : null
+
+  // MapLibre React Native has no transformRequest, so the token goes on as a
+  // header. The header is process-wide: the map sends it with every request
+  // it makes, which is why the map loads only the API's own style, whose
+  // sources are all on the API. The provider refreshes its token without a
+  // re-render, so the header is checked against getToken() on an interval and
+  // set again when the token has changed; the map mounts once it carries one.
+  const headerRef = useRef<string>(undefined)
+  const [headerToken, setHeaderToken] = useState<string>()
+  useEffect(() => {
+    const apply = () => {
+      const token = getToken()
+      if (!token || token === headerRef.current) return
+      MapLibreGL.addCustomHeader('Authorization', `Bearer ${token}`)
+      headerRef.current = token
+      setHeaderToken(token)
+    }
+    apply()
+    const id = setInterval(apply, 10_000)
+    return () => clearInterval(id)
+  }, [getToken])
 
   const searchAddress = useCallback(
     (searchQuery: string) => {
@@ -377,12 +401,8 @@ export default function AddressFinder() {
 
       {/* Map */}
       <View style={styles.mapContainer}>
-        {getToken && (
-          <MapView
-            style={styles.map}
-            styleURL={styleUrl}
-            transformRequest={createTransformRequest(API_URL, getToken)}
-          >
+        {styleUrl && headerToken && (
+          <MapView style={styles.map} mapStyle={styleUrl}>
             <Camera
               ref={cameraRef}
               centerCoordinate={mapCenter}
